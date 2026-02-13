@@ -28,7 +28,7 @@ struct TodoRowView: View {
 
                     // Reminder indicator
                     if todo.reminderFrequency != .none {
-                        Label(todo.reminderFrequency.rawValue, systemImage: "bell.fill")
+                        Label(todo.reminderFrequency.label, systemImage: "bell.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }

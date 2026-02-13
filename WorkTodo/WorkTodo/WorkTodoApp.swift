@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct WorkTodoApp: App {
     @StateObject private var notificationManager = NotificationManager.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -27,6 +28,11 @@ struct WorkTodoApp: App {
             MainTabView()
                 .task {
                     await notificationManager.requestAuthorization()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        NotificationManager.clearBadge()
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)

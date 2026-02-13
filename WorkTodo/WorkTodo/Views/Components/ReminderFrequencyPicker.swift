@@ -8,7 +8,7 @@ struct ReminderFrequencyPicker: View {
         Section {
             Picker("Reminder", selection: $frequency) {
                 ForEach(ReminderFrequency.allCases) { freq in
-                    Label(freq.rawValue, systemImage: freq.systemImage)
+                    Label(freq.label, systemImage: freq.systemImage)
                         .tag(freq)
                 }
             }

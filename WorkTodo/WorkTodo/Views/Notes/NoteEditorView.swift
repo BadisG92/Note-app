@@ -16,72 +16,73 @@ struct NoteEditorView: View {
         self.isNew = isNew
     }
 
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Title field
-                TextField("Title", text: $note.title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .focused($isTitleFocused)
-                    .padding(.horizontal)
-                    .padding(.top, 12)
-                    .onChange(of: note.title) {
-                        note.updatedAt = Date()
-                    }
+    private var editorContent: some View {
+        VStack(spacing: 0) {
+            TextField("Title", text: $note.title)
+                .font(.title2)
+                .fontWeight(.bold)
+                .focused($isTitleFocused)
+                .padding(.horizontal)
+                .padding(.top, 12)
 
-                Divider()
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
+            Divider()
+                .padding(.horizontal)
+                .padding(.vertical, 8)
 
-                // Content editor
-                TextEditor(text: $note.content)
-                    .font(.body)
-                    .focused($isContentFocused)
-                    .padding(.horizontal, 12)
-                    .scrollContentBackground(.hidden)
-                    .onChange(of: note.content) {
-                        note.updatedAt = Date()
-                    }
-            }
-            .navigationTitle(isNew ? "New Note" : "Edit Note")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if isNew {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            modelContext.delete(note)
-                            dismiss()
-                        }
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        if note.title.isEmpty && note.content.isEmpty {
-                            modelContext.delete(note)
-                        }
+            TextEditor(text: $note.content)
+                .font(.body)
+                .focused($isContentFocused)
+                .padding(.horizontal, 12)
+                .scrollContentBackground(.hidden)
+        }
+        .navigationTitle(isNew ? "New Note" : "Edit Note")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isNew {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        modelContext.delete(note)
                         dismiss()
                     }
-                    .fontWeight(.semibold)
                 }
+            }
 
-                ToolbarItem(placement: .secondaryAction) {
-                    Button {
-                        note.isPinned.toggle()
-                    } label: {
-                        Label(
-                            note.isPinned ? "Unpin" : "Pin",
-                            systemImage: note.isPinned ? "pin.slash" : "pin"
-                        )
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                    note.updatedAt = Date()
+                    if note.title.isEmpty && note.content.isEmpty {
+                        modelContext.delete(note)
                     }
+                    dismiss()
+                }
+                .fontWeight(.semibold)
+            }
+
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    note.isPinned.toggle()
+                } label: {
+                    Label(
+                        note.isPinned ? "Unpin" : "Pin",
+                        systemImage: note.isPinned ? "pin.slash" : "pin"
+                    )
                 }
             }
-            .onAppear {
-                if isNew {
-                    isTitleFocused = true
-                }
+        }
+        .onAppear {
+            if isNew {
+                isTitleFocused = true
             }
+        }
+    }
+
+    var body: some View {
+        if isNew {
+            NavigationStack {
+                editorContent
+            }
+        } else {
+            editorContent
         }
     }
 }

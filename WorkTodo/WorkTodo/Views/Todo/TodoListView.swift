@@ -5,11 +5,22 @@ struct TodoListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
 
-    @State private var showingAddSheet = false
-    @State private var selectedTodo: TodoItem?
+    @State private var activeSheet: TodoSheetState?
     @State private var searchText = ""
     @State private var filterMode: FilterMode = .active
     @State private var sortMode: SortMode = .dueDate
+
+    enum TodoSheetState: Identifiable {
+        case add
+        case edit(TodoItem)
+
+        var id: String {
+            switch self {
+            case .add: return "add"
+            case .edit(let todo): return todo.id.uuidString
+            }
+        }
+    }
 
     enum FilterMode: String, CaseIterable {
         case active = "Active"
@@ -26,7 +37,6 @@ struct TodoListView: View {
     private var filteredTodos: [TodoItem] {
         var result = allTodos
 
-        // Filter
         switch filterMode {
         case .active:
             result = result.filter { !$0.isCompleted }
@@ -36,7 +46,6 @@ struct TodoListView: View {
             break
         }
 
-        // Search
         if !searchText.isEmpty {
             result = result.filter {
                 $0.title.localizedCaseInsensitiveContains(searchText) ||
@@ -44,7 +53,6 @@ struct TodoListView: View {
             }
         }
 
-        // Sort
         switch sortMode {
         case .dueDate:
             result.sort { $0.dueDate < $1.dueDate }
@@ -55,18 +63,6 @@ struct TodoListView: View {
         }
 
         return result
-    }
-
-    private var overdueTodos: [TodoItem] {
-        filteredTodos.filter { $0.isOverdue }
-    }
-
-    private var upcomingTodos: [TodoItem] {
-        filteredTodos.filter { !$0.isOverdue && !$0.isCompleted }
-    }
-
-    private var completedTodos: [TodoItem] {
-        filteredTodos.filter { $0.isCompleted }
     }
 
     var body: some View {
@@ -82,14 +78,13 @@ struct TodoListView: View {
             .searchable(text: $searchText, prompt: "Search tasks...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showingAddSheet = true }) {
+                    Button(action: { activeSheet = .add }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
                     }
                 }
                 ToolbarItem(placement: .secondaryAction) {
                     Menu {
-                        // Filter
                         Section("Filter") {
                             Picker("Filter", selection: $filterMode) {
                                 ForEach(FilterMode.allCases, id: \.self) { mode in
@@ -97,7 +92,6 @@ struct TodoListView: View {
                                 }
                             }
                         }
-                        // Sort
                         Section("Sort by") {
                             Picker("Sort", selection: $sortMode) {
                                 ForEach(SortMode.allCases, id: \.self) { mode in
@@ -110,11 +104,14 @@ struct TodoListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddSheet) {
-                TodoDetailView()
-            }
-            .sheet(item: $selectedTodo) { todo in
-                TodoDetailView(todo: todo)
+            .sheet(item: $activeSheet) { state in
+                switch state {
+                case .add:
+                    TodoDetailView()
+                case .edit(let todo):
+                    TodoDetailView(todo: todo)
+                        .id(todo.id)
+                }
             }
         }
     }
@@ -128,21 +125,26 @@ struct TodoListView: View {
             Text("Tap the + button to create your first task.")
         } actions: {
             Button("Add Task") {
-                showingAddSheet = true
+                activeSheet = .add
             }
             .buttonStyle(.borderedProminent)
         }
     }
 
     private var todoList: some View {
-        List {
-            if !overdueTodos.isEmpty {
+        let filtered = filteredTodos
+        let overdue = filtered.filter { $0.isOverdue }
+        let upcoming = filtered.filter { !$0.isOverdue && !$0.isCompleted }
+        let completed = filtered.filter { $0.isCompleted }
+
+        return List {
+            if !overdue.isEmpty {
                 Section {
-                    ForEach(overdueTodos) { todo in
+                    ForEach(overdue) { todo in
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        deleteTodos(from: overdueTodos, at: offsets)
+                        deleteTodos(from: overdue, at: offsets)
                     }
                 } header: {
                     Label("Overdue", systemImage: "exclamationmark.triangle.fill")
@@ -152,13 +154,13 @@ struct TodoListView: View {
                 }
             }
 
-            if !upcomingTodos.isEmpty {
+            if !upcoming.isEmpty {
                 Section {
-                    ForEach(upcomingTodos) { todo in
+                    ForEach(upcoming) { todo in
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        deleteTodos(from: upcomingTodos, at: offsets)
+                        deleteTodos(from: upcoming, at: offsets)
                     }
                 } header: {
                     Label("Upcoming", systemImage: "clock")
@@ -167,13 +169,13 @@ struct TodoListView: View {
                 }
             }
 
-            if !completedTodos.isEmpty && filterMode != .active {
+            if !completed.isEmpty && filterMode != .active {
                 Section {
-                    ForEach(completedTodos) { todo in
+                    ForEach(completed) { todo in
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        deleteTodos(from: completedTodos, at: offsets)
+                        deleteTodos(from: completed, at: offsets)
                     }
                 } header: {
                     Label("Completed", systemImage: "checkmark.circle")
@@ -183,27 +185,18 @@ struct TodoListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .animation(.default, value: filteredTodos.count)
     }
 
     private func todoRow(_ todo: TodoItem) -> some View {
         TodoRowView(todo: todo) {
             withAnimation {
                 todo.toggleCompleted()
-                if todo.isCompleted {
-                    Task {
-                        await NotificationManager.shared.removeNotifications(for: todo)
-                    }
-                } else {
-                    Task {
-                        await NotificationManager.shared.scheduleNotification(for: todo)
-                    }
-                }
             }
+            handleNotificationsAfterToggle(todo)
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            selectedTodo = todo
+            activeSheet = .edit(todo)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
@@ -217,6 +210,7 @@ struct TodoListView: View {
                 withAnimation {
                     todo.toggleCompleted()
                 }
+                handleNotificationsAfterToggle(todo)
             } label: {
                 Label(
                     todo.isCompleted ? "Undo" : "Done",
@@ -229,11 +223,18 @@ struct TodoListView: View {
 
     // MARK: - Actions
 
-    private func deleteTodo(_ todo: TodoItem) {
-        Task {
-            await NotificationManager.shared.removeNotifications(for: todo)
+    private func handleNotificationsAfterToggle(_ todo: TodoItem) {
+        if todo.isCompleted {
+            Task { await NotificationManager.shared.removeNotifications(for: todo) }
+        } else {
+            Task { await NotificationManager.shared.scheduleNotification(for: todo) }
         }
-        modelContext.delete(todo)
+    }
+
+    private func deleteTodo(_ todo: TodoItem) {
+        let todoId = todo.id
+        Task { await NotificationManager.shared.removeNotifications(forId: todoId) }
+        withAnimation { modelContext.delete(todo) }
     }
 
     private func deleteTodos(from source: [TodoItem], at offsets: IndexSet) {

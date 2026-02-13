@@ -46,7 +46,6 @@ struct TodoDetailView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Title & Details
                 Section {
                     TextField("Task title", text: $title)
                         .font(.headline)
@@ -57,7 +56,6 @@ struct TodoDetailView: View {
                     Text("Task")
                 }
 
-                // Date
                 Section("Due Date") {
                     DatePicker(
                         "Due",
@@ -66,22 +64,15 @@ struct TodoDetailView: View {
                     )
                 }
 
-                // Priority
                 Section("Priority") {
                     Picker("Priority", selection: $priority) {
                         ForEach(Priority.allCases) { p in
-                            HStack {
-                                Image(systemName: p.systemImage)
-                                    .foregroundStyle(p.color)
-                                Text(p.label)
-                            }
-                            .tag(p)
+                            Text(p.label).tag(p)
                         }
                     }
                     .pickerStyle(.segmented)
                 }
 
-                // Reminders
                 ReminderFrequencyPicker(
                     frequency: $reminderFrequency,
                     customDays: $customReminderDays
@@ -108,6 +99,8 @@ struct TodoDetailView: View {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return }
 
+        let itemToSchedule: TodoItem
+
         if let existing = existingItem {
             existing.title = trimmedTitle
             existing.details = details
@@ -116,10 +109,7 @@ struct TodoDetailView: View {
             existing.reminderFrequency = reminderFrequency
             existing.customReminderDays = customReminderDays
             existing.updatedAt = Date()
-
-            Task {
-                await NotificationManager.shared.scheduleNotification(for: existing)
-            }
+            itemToSchedule = existing
         } else {
             let item = TodoItem(
                 title: trimmedTitle,
@@ -130,10 +120,11 @@ struct TodoDetailView: View {
                 customReminderDays: customReminderDays
             )
             modelContext.insert(item)
+            itemToSchedule = item
+        }
 
-            Task {
-                await NotificationManager.shared.scheduleNotification(for: item)
-            }
+        Task {
+            await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
         }
 
         dismiss()

@@ -26,23 +26,33 @@ final class TodoItem {
     }
 
     var isOverdue: Bool {
-        !isCompleted && dueDate < Date()
+        guard !isCompleted else { return false }
+        return Calendar.current.startOfDay(for: dueDate) < Calendar.current.startOfDay(for: Date())
     }
 
-    var dueDateFormatted: String {
-        let formatter = DateFormatter()
-        let calendar = Calendar.current
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
 
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
+    var dueDateFormatted: String {
+        let calendar = Calendar.current
         if calendar.isDateInToday(dueDate) {
-            return "Today"
+            return "Today, \(Self.timeFormatter.string(from: dueDate))"
         } else if calendar.isDateInTomorrow(dueDate) {
-            return "Tomorrow"
+            return "Tomorrow, \(Self.timeFormatter.string(from: dueDate))"
         } else if calendar.isDateInYesterday(dueDate) {
-            return "Yesterday"
+            return "Yesterday, \(Self.timeFormatter.string(from: dueDate))"
         } else {
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            return formatter.string(from: dueDate)
+            return Self.dateFormatter.string(from: dueDate)
         }
     }
 
@@ -54,6 +64,7 @@ final class TodoItem {
         reminderFrequency: ReminderFrequency = .none,
         customReminderDays: Int = 1
     ) {
+        let now = Date()
         self.id = UUID()
         self.title = title
         self.details = details
@@ -62,9 +73,9 @@ final class TodoItem {
         self.completedAt = nil
         self.priorityRaw = priority.rawValue
         self.reminderFrequencyRaw = reminderFrequency.rawValue
-        self.customReminderDays = customReminderDays
-        self.createdAt = Date()
-        self.updatedAt = Date()
+        self.customReminderDays = max(1, customReminderDays)
+        self.createdAt = now
+        self.updatedAt = now
     }
 
     func toggleCompleted() {

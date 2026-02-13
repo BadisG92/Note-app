@@ -1,14 +1,25 @@
 import Foundation
 
 enum ReminderFrequency: String, Codable, CaseIterable, Identifiable {
-    case none = "None"
-    case daily = "Daily"
-    case weekly = "Weekly"
-    case biweekly = "Every 2 Weeks"
-    case monthly = "Monthly"
-    case custom = "Custom"
+    case none = "none"
+    case daily = "daily"
+    case weekly = "weekly"
+    case biweekly = "biweekly"
+    case monthly = "monthly"
+    case custom = "custom"
 
     var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .none: return "None"
+        case .daily: return "Daily"
+        case .weekly: return "Weekly"
+        case .biweekly: return "Every 2 Weeks"
+        case .monthly: return "Monthly"
+        case .custom: return "Custom"
+        }
+    }
 
     var calendarComponent: Calendar.Component? {
         switch self {

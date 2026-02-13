@@ -6,7 +6,6 @@ struct NoteListView: View {
     @Query(sort: \Note.updatedAt, order: .reverse) private var allNotes: [Note]
 
     @State private var searchText = ""
-    @State private var showingNewNote = false
     @State private var newNote: Note?
 
     private var filteredNotes: [Note] {
@@ -48,6 +47,8 @@ struct NoteListView: View {
             }
             .sheet(item: $newNote) { note in
                 NoteEditorView(note: note, isNew: true)
+            } onDismiss: {
+                cleanupEmptyNewNote()
             }
         }
     }
@@ -116,6 +117,13 @@ struct NoteListView: View {
         let note = Note()
         modelContext.insert(note)
         newNote = note
+    }
+
+    private func cleanupEmptyNewNote() {
+        if let note = newNote, note.title.isEmpty && note.content.isEmpty {
+            modelContext.delete(note)
+        }
+        newNote = nil
     }
 
     private func deleteNotes(from source: [Note], at offsets: IndexSet) {

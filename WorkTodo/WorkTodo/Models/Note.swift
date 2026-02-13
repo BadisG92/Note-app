@@ -19,18 +19,23 @@ final class Note {
         return text
     }
 
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     var updatedFormatted: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: updatedAt, relativeTo: Date())
+        Self.relativeFormatter.localizedString(for: updatedAt, relativeTo: Date())
     }
 
     init(title: String = "", content: String = "") {
+        let now = Date()
         self.id = UUID()
         self.title = title
         self.content = content
         self.isPinned = false
-        self.createdAt = Date()
-        self.updatedAt = Date()
+        self.createdAt = now
+        self.updatedAt = now
     }
 }
