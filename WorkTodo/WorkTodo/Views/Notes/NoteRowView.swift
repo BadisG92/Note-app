@@ -48,7 +48,7 @@ struct NoteRowView: View {
 
     private var hasMarkdown: Bool {
         let c = note.content
-        return c.contains("**") || c.contains("# ") || c.contains("```")
+        return c.contains("**") || c.contains("# ") || c.contains("```") || c.contains("~~")
     }
 
     private var noteAccessibilityLabel: String {

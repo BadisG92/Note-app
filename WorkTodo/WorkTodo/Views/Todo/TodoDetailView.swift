@@ -200,7 +200,7 @@ struct TodoDetailView: View {
 
                 if isEditing, let existing = existingItem {
                     Section {
-                        ForEach(existing.subtasks.sorted(by: { !$0.isCompleted && $1.isCompleted })) { subtask in
+                        ForEach(existing.subtasks.sorted(by: { ($0.isCompleted ? 1 : 0) < ($1.isCompleted ? 1 : 0) })) { subtask in
                             HStack(spacing: 10) {
                                 Button {
                                     withAnimation(.snappy(duration: Theme.animSmooth)) {
@@ -221,7 +221,7 @@ struct TodoDetailView: View {
                             }
                         }
                         .onDelete { offsets in
-                            let sorted = existing.subtasks.sorted(by: { !$0.isCompleted && $1.isCompleted })
+                            let sorted = existing.subtasks.sorted(by: { ($0.isCompleted ? 1 : 0) < ($1.isCompleted ? 1 : 0) })
                             for index in offsets {
                                 modelContext.delete(sorted[index])
                             }
@@ -321,7 +321,7 @@ struct TodoDetailView: View {
         guard !trimmed.isEmpty else { return }
 
         let subtask = TodoItem(title: trimmed, dueDate: parent.dueDate)
-        subtask.parentTask = parent
+        subtask.assignParent(parent)
         subtask.project = parent.project
         modelContext.insert(subtask)
 

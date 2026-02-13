@@ -181,12 +181,30 @@ struct CalendarView: View {
 
     // MARK: - Calendar Grid
 
+    private struct CalendarSlot: Identifiable {
+        let id: String
+        let date: Date?
+
+        init(index: Int, date: Date?) {
+            if let date = date {
+                self.id = "d-\(Int(date.timeIntervalSinceReferenceDate))"
+            } else {
+                self.id = "blank-\(index)"
+            }
+            self.date = date
+        }
+    }
+
+    private var calendarSlots: [CalendarSlot] {
+        daysInGrid.enumerated().map { CalendarSlot(index: $0.offset, date: $0.element) }
+    }
+
     private var calendarGrid: some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
         return LazyVGrid(columns: columns, spacing: Theme.spacingXS) {
-            ForEach(Array(daysInGrid.enumerated()), id: \.offset) { _, date in
-                if let date = date {
+            ForEach(calendarSlots) { slot in
+                if let date = slot.date {
                     dayCell(for: date)
                 } else {
                     Color.clear

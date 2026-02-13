@@ -40,7 +40,7 @@ struct ProjectDetailView: View {
 
     var body: some View {
         Group {
-            if project.todos.isEmpty {
+            if topLevelTodos.isEmpty {
                 emptyState
             } else {
                 taskList

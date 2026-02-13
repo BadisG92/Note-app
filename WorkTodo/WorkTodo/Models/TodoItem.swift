@@ -115,6 +115,22 @@ final class TodoItem {
         updatedAt = Date()
     }
 
+    /// Safely assigns a parent task, preventing self-referential cycles.
+    func assignParent(_ parent: TodoItem?) {
+        guard let parent = parent else {
+            self.parentTask = nil
+            return
+        }
+        guard parent.id != self.id else { return }
+        // Walk up the ancestor chain to prevent deeper cycles
+        var ancestor: TodoItem? = parent
+        while let a = ancestor {
+            if a.id == self.id { return }
+            ancestor = a.parentTask
+        }
+        self.parentTask = parent
+    }
+
     /// Creates the next occurrence of a recurring task. Returns nil if not recurring.
     func createNextOccurrence() -> TodoItem? {
         guard recurrenceRule != .none else { return nil }
