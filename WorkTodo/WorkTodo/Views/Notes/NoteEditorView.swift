@@ -8,12 +8,16 @@ struct NoteEditorView: View {
     @Bindable var note: Note
     @FocusState private var isTitleFocused: Bool
     @FocusState private var isContentFocused: Bool
+    @State private var originalTitle: String
+    @State private var originalContent: String
 
     private var isNew: Bool
 
     init(note: Note, isNew: Bool = false) {
         self.note = note
         self.isNew = isNew
+        _originalTitle = State(initialValue: note.title)
+        _originalContent = State(initialValue: note.content)
     }
 
     private var editorContent: some View {
@@ -89,7 +93,8 @@ struct NoteEditorView: View {
             }
         }
         .onDisappear {
-            if !isNew {
+            if !isNew,
+               note.title != originalTitle || note.content != originalContent {
                 note.updatedAt = Date()
                 try? modelContext.save()
             }

@@ -7,6 +7,7 @@ struct NoteListView: View {
 
     @State private var searchText = ""
     @State private var newNote: Note?
+    @State private var pendingCleanupNote: Note?
     @State private var noteToDelete: Note?
     @State private var showDeleteConfirmation = false
 
@@ -185,12 +186,13 @@ struct NoteListView: View {
     private func createNote() {
         let note = Note()
         modelContext.insert(note)
+        pendingCleanupNote = note
         newNote = note
     }
 
     private func cleanupEmptyNewNote() {
-        guard let note = newNote else { return }
-        newNote = nil
+        guard let note = pendingCleanupNote else { return }
+        pendingCleanupNote = nil
         if note.modelContext != nil,
            note.title.isEmpty && note.content.isEmpty {
             modelContext.delete(note)
