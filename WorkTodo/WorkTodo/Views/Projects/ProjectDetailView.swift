@@ -105,8 +105,9 @@ struct ProjectDetailView: View {
     private var emptyState: some View {
         ContentUnavailableView {
             Label("No Tasks", systemImage: project.iconName)
+                .foregroundStyle(project.color)
         } description: {
-            Text("Add tasks to \"\(project.name)\" to get started.")
+            Text("Add your first task to \"\(project.name)\".")
         } actions: {
             Button("New Task") {
                 activeSheet = .add
@@ -125,7 +126,7 @@ struct ProjectDetailView: View {
                             progress: project.completionProgress,
                             color: project.color
                         )
-                        .frame(width: 44, height: 44)
+                        .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(project.completedTodoCount) of \(project.totalTodoCount) completed")
@@ -147,9 +148,7 @@ struct ProjectDetailView: View {
                         todoRow(todo)
                     }
                 } header: {
-                    Label("Active", systemImage: "circle")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Active", systemImage: "circle", count: activeTodos.count)
                 }
             }
 
@@ -160,9 +159,7 @@ struct ProjectDetailView: View {
                         todoRow(todo)
                     }
                 } header: {
-                    Label("Completed", systemImage: "checkmark.circle")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Completed", systemImage: "checkmark.circle", tint: Theme.success)
                 }
             }
         }
@@ -171,7 +168,7 @@ struct ProjectDetailView: View {
 
     private func todoRow(_ todo: TodoItem) -> some View {
         TodoRowView(todo: todo, onToggle: {
-            withAnimation(.snappy(duration: 0.35)) {
+            withAnimation(.snappy(duration: Theme.animSmooth)) {
                 todo.toggleCompleted()
             }
             UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -197,7 +194,7 @@ struct ProjectDetailView: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                withAnimation(.snappy(duration: 0.35)) {
+                withAnimation(.snappy(duration: Theme.animSmooth)) {
                     todo.toggleCompleted()
                 }
                 UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -226,7 +223,7 @@ struct ProjectDetailView: View {
         let todoId = todo.id
         NotificationManager.shared.removeNotifications(forId: todoId)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        withAnimation(.snappy(duration: 0.25)) { modelContext.delete(todo) }
+        withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(todo) }
         try? modelContext.save()
     }
 }

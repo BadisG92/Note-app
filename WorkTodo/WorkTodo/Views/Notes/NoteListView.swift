@@ -44,8 +44,8 @@ struct NoteListView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.25), value: allNotes.isEmpty)
-            .animation(.easeOut(duration: 0.25), value: filteredNotes.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: allNotes.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: filteredNotes.isEmpty)
             .navigationTitle("Notes")
             .searchable(text: $searchText, prompt: "Search notes...")
             .toolbar {
@@ -93,8 +93,9 @@ struct NoteListView: View {
     private var emptyState: some View {
         ContentUnavailableView {
             Label("No Notes", systemImage: "note.text")
+                .foregroundStyle(Theme.amber)
         } description: {
-            Text("Tap the + button to write your first note.")
+            Text("Capture your thoughts and ideas.\nTap the button below to start writing.")
         } actions: {
             Button("New Note") {
                 createNote()
@@ -166,9 +167,7 @@ struct NoteListView: View {
                         requestDeleteNotes(from: pinned, at: offsets)
                     }
                 } header: {
-                    Label("Pinned", systemImage: "pin.fill")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Pinned", systemImage: "pin.fill", tint: Theme.amber)
                 }
             }
 
@@ -229,9 +228,7 @@ struct NoteListView: View {
                 }
             } header: {
                 if !pinned.isEmpty {
-                    Text("Notes")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Notes", systemImage: "note.text")
                 }
             }
         }

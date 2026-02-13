@@ -87,7 +87,7 @@ struct TodoRowView: View {
         .onTapGesture {
             onEdit?()
         }
-        .animation(.snappy(duration: 0.35), value: todo.isCompleted)
+        .animation(.snappy(duration: Theme.animSmooth), value: todo.isCompleted)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityHint(onEdit != nil ? "Double tap to edit task" : "")

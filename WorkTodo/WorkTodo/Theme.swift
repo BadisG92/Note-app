@@ -31,4 +31,35 @@ enum Theme {
 
     /// Celebration icon
     static let celebration = Color(hex: "C8923C")
+
+    /// Calendar selected day tint
+    static let calendarDot = Color(hex: "C4704B").opacity(0.15)
+
+    // MARK: - Spacing Scale (8-point grid)
+
+    static let spacingXS: CGFloat = 4
+    static let spacingSM: CGFloat = 8
+    static let spacingMD: CGFloat = 12
+    static let spacingLG: CGFloat = 16
+    static let spacingXL: CGFloat = 24
+    static let spacingXXL: CGFloat = 32
+
+    // MARK: - Corner Radius
+
+    static let radiusXS: CGFloat = 4
+    static let radiusSM: CGFloat = 8
+    static let radiusMD: CGFloat = 10
+    static let radiusLG: CGFloat = 12
+
+    // MARK: - Animation Durations
+
+    static let animFast: Double = 0.2
+    static let animDefault: Double = 0.25
+    static let animSmooth: Double = 0.35
+
+    // MARK: - Component Sizes
+
+    static let minTouchTarget: CGFloat = 44
+    static let iconContainerSize: CGFloat = 36
+    static let progressCircleSize: CGFloat = 36
 }

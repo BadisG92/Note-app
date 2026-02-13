@@ -6,9 +6,11 @@ struct CalendarView: View {
     let onToggle: (TodoItem) -> Void
     let onEdit: (TodoItem) -> Void
     let onDelete: (TodoItem) -> Void
+    let onAddTask: (Date) -> Void
 
     @State private var displayedMonth = Date()
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
+    @GestureState private var dragOffset: CGFloat = 0
 
     private let calendar = Calendar.current
     private let weekdaySymbols: [String] = {
@@ -21,6 +23,10 @@ struct CalendarView: View {
 
     private var monthTitle: String {
         displayedMonth.formatted(.dateTime.month(.wide).year())
+    }
+
+    private var isCurrentMonth: Bool {
+        calendar.isDate(displayedMonth, equalTo: Date(), toGranularity: .month)
     }
 
     private var daysInGrid: [Date?] {
@@ -39,7 +45,6 @@ struct CalendarView: View {
             }
         }
 
-        // Pad to fill last row
         while days.count % 7 != 0 {
             days.append(nil)
         }
@@ -47,7 +52,6 @@ struct CalendarView: View {
         return days
     }
 
-    /// Map: startOfDay -> todos for that day
     private var todosByDay: [Date: [TodoItem]] {
         Dictionary(grouping: todos) { todo in
             calendar.startOfDay(for: todo.dueDate)
@@ -70,9 +74,33 @@ struct CalendarView: View {
                 calendarHeader
                 weekdayHeader
                 calendarGrid
+                    .gesture(swipeGesture)
+                Divider()
+                    .padding(.top, Theme.spacingSM)
                 selectedDaySection
             }
         }
+    }
+
+    // MARK: - Swipe Gesture
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 30, coordinateSpace: .local)
+            .updating($dragOffset) { value, state, _ in
+                state = value.translation.width
+            }
+            .onEnded { value in
+                let threshold: CGFloat = 50
+                if value.translation.width < -threshold {
+                    withAnimation(.easeInOut(duration: Theme.animDefault)) {
+                        moveMonth(by: 1)
+                    }
+                } else if value.translation.width > threshold {
+                    withAnimation(.easeInOut(duration: Theme.animDefault)) {
+                        moveMonth(by: -1)
+                    }
+                }
+            }
     }
 
     // MARK: - Calendar Header
@@ -80,45 +108,54 @@ struct CalendarView: View {
     private var calendarHeader: some View {
         HStack {
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(.easeInOut(duration: Theme.animDefault)) {
                     moveMonth(by: -1)
                 }
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
             }
             .accessibilityLabel("Previous month")
 
             Spacer()
 
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    displayedMonth = Date()
-                    selectedDate = todayStart
-                }
-            } label: {
+            VStack(spacing: 2) {
                 Text(monthTitle)
                     .font(.headline)
+
+                if !isCurrentMonth {
+                    Button {
+                        withAnimation(.easeInOut(duration: Theme.animDefault)) {
+                            displayedMonth = Date()
+                            selectedDate = todayStart
+                        }
+                    } label: {
+                        Text("Today")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.tint)
+                    }
+                }
             }
-            .accessibilityLabel("Go to today, currently showing \(monthTitle)")
+            .accessibilityElement(children: .combine)
 
             Spacer()
 
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(.easeInOut(duration: Theme.animDefault)) {
                     moveMonth(by: 1)
                 }
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
             }
             .accessibilityLabel("Next month")
         }
         .padding(.horizontal)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        .padding(.top, Theme.spacingSM)
+        .padding(.bottom, Theme.spacingXS)
     }
 
     // MARK: - Weekday Header
@@ -129,12 +166,12 @@ struct CalendarView: View {
                 Text(symbol)
                     .font(.caption2)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 4)
+        .padding(.horizontal, Theme.spacingSM)
+        .padding(.bottom, Theme.spacingXS)
     }
 
     private var adjustedWeekdaySymbols: [String] {
@@ -147,17 +184,17 @@ struct CalendarView: View {
     private var calendarGrid: some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
-        return LazyVGrid(columns: columns, spacing: 4) {
+        return LazyVGrid(columns: columns, spacing: Theme.spacingXS) {
             ForEach(Array(daysInGrid.enumerated()), id: \.offset) { _, date in
                 if let date = date {
                     dayCell(for: date)
                 } else {
                     Color.clear
-                        .frame(height: 44)
+                        .frame(height: 48)
                 }
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Theme.spacingSM)
     }
 
     private func dayCell(for date: Date) -> some View {
@@ -169,66 +206,62 @@ struct CalendarView: View {
         let hasOverdue = dayTodos.contains { $0.isOverdue }
         let activeTodos = dayTodos.filter { !$0.isCompleted }
         let allCompleted = !dayTodos.isEmpty && activeTodos.isEmpty
+        let taskCount = dayTodos.count
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: Theme.animFast)) {
                 selectedDate = startOfDate
             }
         } label: {
             VStack(spacing: 2) {
-                Text("\(day)")
-                    .font(.subheadline)
-                    .fontWeight(isToday ? .bold : .regular)
-                    .foregroundStyle(dayTextColor(isSelected: isSelected, isToday: isToday))
-                    .frame(width: 32, height: 32)
-                    .background {
-                        if isSelected {
-                            Circle()
-                                .fill(.tint)
-                        } else if isToday {
-                            Circle()
-                                .strokeBorder(.tint, lineWidth: 1.5)
-                        }
+                ZStack {
+                    // Selection / Today background
+                    if isSelected {
+                        Circle()
+                            .fill(.tint)
+                            .frame(width: 34, height: 34)
+                    } else if isToday {
+                        Circle()
+                            .strokeBorder(.tint, lineWidth: 1.5)
+                            .frame(width: 34, height: 34)
                     }
 
-                // Task indicators
-                HStack(spacing: 3) {
-                    if !dayTodos.isEmpty {
-                        if hasOverdue {
-                            Circle()
-                                .fill(Theme.danger)
-                                .frame(width: 5, height: 5)
-                        } else if allCompleted {
-                            Circle()
-                                .fill(Theme.success)
-                                .frame(width: 5, height: 5)
-                        } else {
-                            let count = min(activeTodos.count, 3)
-                            ForEach(0..<count, id: \.self) { _ in
-                                Circle()
-                                    .fill(Theme.amber)
-                                    .frame(width: 5, height: 5)
-                            }
-                        }
-                    }
+                    Text("\(day)")
+                        .font(.subheadline)
+                        .fontWeight(isToday || isSelected ? .bold : .regular)
+                        .foregroundStyle(isSelected ? .white : .primary)
                 }
-                .frame(height: 5)
+                .frame(width: 34, height: 34)
+
+                // Task count badge
+                if taskCount > 0 {
+                    Text("\(taskCount)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 14, minHeight: 14)
+                        .background(
+                            badgeColor(hasOverdue: hasOverdue, allCompleted: allCompleted),
+                            in: Capsule()
+                        )
+                } else {
+                    Color.clear
+                        .frame(height: 14)
+                }
             }
-            .frame(height: 44)
+            .frame(height: 52)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(dayCellAccessibilityLabel(day: day, date: date, todoCount: dayTodos.count, isToday: isToday))
+        .accessibilityLabel(dayCellAccessibilityLabel(date: date, todoCount: taskCount, isToday: isToday))
     }
 
-    private func dayTextColor(isSelected: Bool, isToday: Bool) -> Color {
-        if isSelected {
-            return .white
-        }
-        return .primary
+    private func badgeColor(hasOverdue: Bool, allCompleted: Bool) -> Color {
+        if hasOverdue { return Theme.danger }
+        if allCompleted { return Theme.success }
+        return Theme.amber
     }
 
-    private func dayCellAccessibilityLabel(day: Int, date: Date, todoCount: Int, isToday: Bool) -> String {
+    private func dayCellAccessibilityLabel(date: Date, todoCount: Int, isToday: Bool) -> String {
         var label = date.formatted(date: .long, time: .omitted)
         if isToday { label += ", today" }
         if todoCount > 0 {
@@ -241,8 +274,7 @@ struct CalendarView: View {
 
     private var selectedDaySection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Section header
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.spacingSM) {
                 Text(selectedDateTitle)
                     .font(.subheadline)
                     .fontWeight(.semibold)
@@ -252,44 +284,74 @@ struct CalendarView: View {
                         .font(.caption2)
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
+                        .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(.tint, in: Capsule())
                 }
 
                 Spacer()
+
+                Button {
+                    onAddTask(selectedDate)
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.tint)
+                }
+                .accessibilityLabel("Add task for \(selectedDateTitle)")
             }
             .padding(.horizontal)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            .padding(.top, Theme.spacingMD)
+            .padding(.bottom, Theme.spacingSM)
 
             if selectedDayTodos.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: Theme.spacingSM) {
                     Image(systemName: "calendar.badge.checkmark")
                         .font(.title2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.stone)
                     Text("No tasks for this day")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
+                .padding(.vertical, Theme.spacingXL)
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(selectedDayTodos) { todo in
-                        calendarTodoRow(todo)
+                        TodoRowView(todo: todo, onToggle: {
+                            onToggle(todo)
+                        }, onEdit: {
+                            onEdit(todo)
+                        })
+                        .padding(.horizontal, Theme.spacingXS)
+                        .contextMenu {
+                            Button { onEdit(todo) } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button { onToggle(todo) } label: {
+                                Label(
+                                    todo.isCompleted ? "Mark Active" : "Mark Complete",
+                                    systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark.circle"
+                                )
+                            }
+                            Divider()
+                            Button(role: .destructive) { onDelete(todo) } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+
                         if todo.id != selectedDayTodos.last?.id {
                             Divider()
-                                .padding(.leading, 44)
+                                .padding(.leading, Theme.minTouchTarget)
                         }
                     }
                 }
                 .background(Color(.secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMD))
                 .padding(.horizontal)
             }
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, Theme.spacingLG)
     }
 
     private var selectedDateTitle: String {
@@ -301,71 +363,6 @@ struct CalendarView: View {
             return "Yesterday"
         } else {
             return selectedDate.formatted(.dateTime.weekday(.wide).day().month(.wide))
-        }
-    }
-
-    private func calendarTodoRow(_ todo: TodoItem) -> some View {
-        HStack(spacing: 12) {
-            Button { onToggle(todo) } label: {
-                Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(todo.isCompleted ? Theme.success : .secondary)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .buttonStyle(.borderless)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(todo.title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .strikethrough(todo.isCompleted)
-                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                    .lineLimit(1)
-
-                HStack(spacing: 4) {
-                    Text(todo.dueDate.formatted(date: .omitted, time: .shortened))
-                        .font(.caption)
-                        .foregroundStyle(todo.isOverdue ? Theme.danger : .secondary)
-
-                    if let project = todo.project {
-                        Text("\u{00B7}")
-                            .font(.caption)
-                            .foregroundStyle(.quaternary)
-                        Label(project.name, systemImage: project.iconName)
-                            .font(.caption)
-                            .foregroundStyle(project.color)
-                    }
-                }
-            }
-
-            Spacer()
-
-            PriorityBadge(priority: todo.priority)
-                .opacity(todo.isCompleted ? 0.7 : 1.0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit(todo) }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) { onDelete(todo) } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        .contextMenu {
-            Button { onEdit(todo) } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            Button { onToggle(todo) } label: {
-                Label(
-                    todo.isCompleted ? "Mark Active" : "Mark Complete",
-                    systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark.circle"
-                )
-            }
-            Divider()
-            Button(role: .destructive) { onDelete(todo) } label: {
-                Label("Delete", systemImage: "trash")
-            }
         }
     }
 

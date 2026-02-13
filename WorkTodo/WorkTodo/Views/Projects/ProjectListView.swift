@@ -30,7 +30,7 @@ struct ProjectListView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.25), value: projects.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: projects.isEmpty)
             .navigationTitle("Projects")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -76,8 +76,9 @@ struct ProjectListView: View {
     private var emptyState: some View {
         ContentUnavailableView {
             Label("No Projects", systemImage: "folder.fill")
+                .foregroundStyle(Theme.amber)
         } description: {
-            Text("Projects group related tasks together. Create a project, then assign tasks to it when creating or editing a task.")
+            Text("Group related tasks into projects.\nCreate one, then assign tasks from the Tasks tab.")
         } actions: {
             Button("New Project") {
                 activeSheet = .add
@@ -129,9 +130,9 @@ struct ProjectListView: View {
             Image(systemName: project.iconName)
                 .font(.body)
                 .foregroundStyle(.white)
-                .frame(width: 40, height: 40)
+                .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
                 .background(project.color)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMD))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)
@@ -150,7 +151,7 @@ struct ProjectListView: View {
                     progress: project.completionProgress,
                     color: project.color
                 )
-                .frame(width: 28, height: 28)
+                .frame(width: Theme.progressCircleSize, height: Theme.progressCircleSize)
             }
         }
         .padding(.vertical, 6)
@@ -182,7 +183,7 @@ struct ProjectListView: View {
 
     private func performDelete(_ project: Project) {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        withAnimation(.snappy(duration: 0.25)) { modelContext.delete(project) }
+        withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(project) }
         try? modelContext.save()
     }
 }

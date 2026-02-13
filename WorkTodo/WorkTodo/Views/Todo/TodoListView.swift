@@ -19,11 +19,13 @@ struct TodoListView: View {
 
     enum TodoSheetState: Identifiable {
         case add(UUID = UUID())
+        case addForDate(Date, UUID = UUID())
         case edit(TodoItem, UUID = UUID())
 
         var id: String {
             switch self {
             case .add(let token): return "add-\(token)"
+            case .addForDate(_, let token): return "addForDate-\(token)"
             case .edit(_, let token): return "edit-\(token)"
             }
         }
@@ -90,7 +92,7 @@ struct TodoListView: View {
                     CalendarView(
                         todos: currentFiltered,
                         onToggle: { todo in
-                            withAnimation(.snappy(duration: 0.35)) {
+                            withAnimation(.snappy(duration: Theme.animSmooth)) {
                                 todo.toggleCompleted()
                             }
                             UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -104,6 +106,10 @@ struct TodoListView: View {
                         onDelete: { todo in
                             todoToDelete = todo
                             showDeleteConfirmation = true
+                        },
+                        onAddTask: { date in
+                            guard activeSheet == nil else { return }
+                            activeSheet = .addForDate(date)
                         }
                     )
                     .transition(.opacity)
@@ -115,9 +121,9 @@ struct TodoListView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.25), value: allTodos.isEmpty)
-            .animation(.easeOut(duration: 0.25), value: currentFiltered.isEmpty)
-            .animation(.easeOut(duration: 0.25), value: showCalendar)
+            .animation(.easeOut(duration: Theme.animDefault), value: allTodos.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: currentFiltered.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: showCalendar)
             .animation(.default, value: filterMode)
             .animation(.default, value: sortMode)
             .animation(.default, value: selectedProjectFilter?.id)
@@ -127,7 +133,7 @@ struct TodoListView: View {
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 12) {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
+                            withAnimation(.easeInOut(duration: Theme.animDefault)) {
                                 showCalendar.toggle()
                             }
                         } label: {
@@ -156,6 +162,9 @@ struct TodoListView: View {
                 switch state {
                 case .add:
                     TodoDetailView()
+                        .presentationDragIndicator(.visible)
+                case .addForDate(let date, _):
+                    TodoDetailView(dueDate: date)
                         .presentationDragIndicator(.visible)
                 case .edit(let todo, _):
                     TodoDetailView(todo: todo)
@@ -270,8 +279,9 @@ struct TodoListView: View {
     private var emptyState: some View {
         ContentUnavailableView {
             Label("No Tasks Yet", systemImage: "checklist")
+                .foregroundStyle(Theme.amber)
         } description: {
-            Text("Tap the + button to create your first task.")
+            Text("Stay on top of your day.\nTap the button below to create your first task.")
         } actions: {
             Button("New Task") {
                 activeSheet = .add
@@ -419,13 +429,12 @@ struct TodoListView: View {
                         requestDeleteTodos(from: overdue, at: offsets)
                     }
                 } header: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Theme.danger)
-                        Text("Overdue")
-                    }
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    SectionHeaderView(
+                        title: "Overdue",
+                        systemImage: "exclamationmark.triangle.fill",
+                        tint: Theme.danger,
+                        count: overdue.count
+                    )
                 }
             }
 
@@ -438,9 +447,7 @@ struct TodoListView: View {
                         requestDeleteTodos(from: today, at: offsets)
                     }
                 } header: {
-                    Label("Today", systemImage: "sun.max")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Today", systemImage: "sun.max")
                 }
             }
 
@@ -453,9 +460,7 @@ struct TodoListView: View {
                         requestDeleteTodos(from: tomorrow, at: offsets)
                     }
                 } header: {
-                    Label("Tomorrow", systemImage: "sunrise")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Tomorrow", systemImage: "sunrise")
                 }
             }
 
@@ -468,9 +473,7 @@ struct TodoListView: View {
                         requestDeleteTodos(from: thisWeek, at: offsets)
                     }
                 } header: {
-                    Label("This Week", systemImage: "calendar")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "This Week", systemImage: "calendar")
                 }
             }
 
@@ -483,9 +486,7 @@ struct TodoListView: View {
                         requestDeleteTodos(from: later, at: offsets)
                     }
                 } header: {
-                    Label("Later", systemImage: "calendar.badge.clock")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Later", systemImage: "calendar.badge.clock")
                 }
             }
 
@@ -498,9 +499,7 @@ struct TodoListView: View {
                         requestDeleteTodos(from: completed, at: offsets)
                     }
                 } header: {
-                    Label("Completed", systemImage: "checkmark.circle")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    SectionHeaderView(title: "Completed", systemImage: "checkmark.circle", tint: Theme.success)
                 }
             }
         }
@@ -509,7 +508,7 @@ struct TodoListView: View {
 
     private func todoRow(_ todo: TodoItem) -> some View {
         TodoRowView(todo: todo, onToggle: {
-            withAnimation(.snappy(duration: 0.35)) {
+            withAnimation(.snappy(duration: Theme.animSmooth)) {
                 todo.toggleCompleted()
             }
             UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -527,7 +526,7 @@ struct TodoListView: View {
             }
 
             Button {
-                withAnimation(.snappy(duration: 0.35)) {
+                withAnimation(.snappy(duration: Theme.animSmooth)) {
                     todo.toggleCompleted()
                 }
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -559,7 +558,7 @@ struct TodoListView: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                withAnimation(.snappy(duration: 0.35)) {
+                withAnimation(.snappy(duration: Theme.animSmooth)) {
                     todo.toggleCompleted()
                 }
                 UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -601,7 +600,7 @@ struct TodoListView: View {
         let todoId = todo.id
         NotificationManager.shared.removeNotifications(forId: todoId)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        withAnimation(.snappy(duration: 0.25)) { modelContext.delete(todo) }
+        withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(todo) }
         try? modelContext.save()
     }
 

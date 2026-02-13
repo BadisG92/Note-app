@@ -27,12 +27,12 @@ struct TodoDetailView: View {
     }
 
     // Create new
-    init(project: Project? = nil) {
+    init(project: Project? = nil, dueDate: Date = Date()) {
         self.existingItem = nil
         self.isEditing = false
         _title = State(initialValue: "")
         _details = State(initialValue: "")
-        _dueDate = State(initialValue: Date())
+        _dueDate = State(initialValue: dueDate)
         _priority = State(initialValue: .medium)
         _reminderFrequency = State(initialValue: .none)
         _customReminderDays = State(initialValue: 1)
