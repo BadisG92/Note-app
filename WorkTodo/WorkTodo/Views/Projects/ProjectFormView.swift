@@ -9,6 +9,7 @@ struct ProjectFormView: View {
     @State private var selectedColorHex: String
     @State private var selectedIcon: String
     @State private var isSaving = false
+    @State private var showDiscardConfirmation = false
 
     private var existingProject: Project?
     private var isEditing: Bool
@@ -35,6 +36,15 @@ struct ProjectFormView: View {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var hasUnsavedChanges: Bool {
+        if isEditing, let existing = existingProject {
+            return name != existing.name
+                || selectedColorHex != existing.colorHex
+                || selectedIcon != existing.iconName
+        }
+        return !name.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -46,71 +56,72 @@ struct ProjectFormView: View {
                 Section("Color") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
                         ForEach(Project.availableColors, id: \.hex) { colorOption in
-                            Circle()
-                                .fill(Color(hex: colorOption.hex))
-                                .frame(width: 36, height: 36)
-                                .overlay {
-                                    if selectedColorHex == colorOption.hex {
-                                        Image(systemName: "checkmark")
-                                            .font(.caption.bold())
-                                            .foregroundStyle(.white)
+                            Button {
+                                selectedColorHex = colorOption.hex
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            } label: {
+                                Circle()
+                                    .fill(Color(hex: colorOption.hex))
+                                    .frame(width: 40, height: 40)
+                                    .overlay {
+                                        if selectedColorHex == colorOption.hex {
+                                            Image(systemName: "checkmark")
+                                                .font(.caption.bold())
+                                                .foregroundStyle(.white)
+                                                .transition(.scale.combined(with: .opacity))
+                                        }
                                     }
-                                }
-                                .onTapGesture {
-                                    selectedColorHex = colorOption.hex
-                                }
-                                .accessibilityLabel(colorOption.name)
-                                .accessibilityAddTraits(selectedColorHex == colorOption.hex ? .isSelected : [])
+                                    .scaleEffect(selectedColorHex == colorOption.hex ? 1.12 : 1.0)
+                                    .animation(.snappy(duration: 0.25), value: selectedColorHex)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(colorOption.name)
+                            .accessibilityAddTraits(selectedColorHex == colorOption.hex ? .isSelected : [])
+                            .accessibilityHint("Double tap to select this color")
                         }
                     }
                     .padding(.vertical, 4)
                 }
 
                 Section("Icon") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
                         ForEach(Project.availableIcons, id: \.self) { icon in
-                            Image(systemName: icon)
-                                .font(.title3)
-                                .frame(width: 44, height: 44)
-                                .foregroundStyle(selectedIcon == icon ? .white : Color(hex: selectedColorHex))
-                                .background {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(selectedIcon == icon ? Color(hex: selectedColorHex) : Color(hex: selectedColorHex).opacity(0.12))
-                                }
-                                .onTapGesture {
-                                    selectedIcon = icon
-                                }
-                                .accessibilityLabel(icon)
-                                .accessibilityAddTraits(selectedIcon == icon ? .isSelected : [])
+                            Button {
+                                selectedIcon = icon
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            } label: {
+                                Image(systemName: icon)
+                                    .font(.title3)
+                                    .frame(width: 44, height: 44)
+                                    .foregroundStyle(selectedIcon == icon ? .white : Color(hex: selectedColorHex))
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(selectedIcon == icon ? Color(hex: selectedColorHex) : Color(hex: selectedColorHex).opacity(0.12))
+                                    }
+                                    .scaleEffect(selectedIcon == icon ? 1.06 : 1.0)
+                                    .animation(.snappy(duration: 0.25), value: selectedIcon)
+                                    .animation(.snappy(duration: 0.25), value: selectedColorHex)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Self.iconLabel(for: icon))
+                            .accessibilityAddTraits(selectedIcon == icon ? .isSelected : [])
+                            .accessibilityHint("Double tap to select this icon")
                         }
                     }
                     .padding(.vertical, 4)
-                }
-
-                if isEditing, let project = existingProject {
-                    Section {
-                        HStack {
-                            Text("Active tasks")
-                            Spacer()
-                            Text("\(project.activeTodoCount)")
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Completed tasks")
-                            Spacer()
-                            Text("\(project.completedTodoCount)")
-                                .foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        Text("Stats")
-                    }
                 }
             }
             .navigationTitle(isEditing ? "Edit Project" : "New Project")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if hasUnsavedChanges {
+                            showDiscardConfirmation = true
+                        } else {
+                            dismiss()
+                        }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "Save" : "Create") {
@@ -119,6 +130,17 @@ struct ProjectFormView: View {
                     .fontWeight(.semibold)
                     .disabled(!isValid || isSaving)
                 }
+            }
+            .interactiveDismissDisabled(hasUnsavedChanges)
+            .confirmationDialog(
+                "Discard Changes?",
+                isPresented: $showDiscardConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Discard Changes", role: .destructive) {
+                    dismiss()
+                }
+                Button("Keep Editing", role: .cancel) { }
             }
         }
     }
@@ -147,5 +169,27 @@ struct ProjectFormView: View {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         try? modelContext.save()
         dismiss()
+    }
+
+    private static func iconLabel(for icon: String) -> String {
+        let map: [String: String] = [
+            "folder.fill": "Folder",
+            "briefcase.fill": "Briefcase",
+            "house.fill": "House",
+            "heart.fill": "Heart",
+            "star.fill": "Star",
+            "book.fill": "Book",
+            "graduationcap.fill": "Graduation cap",
+            "cart.fill": "Shopping cart",
+            "car.fill": "Car",
+            "airplane": "Airplane",
+            "gamecontroller.fill": "Game controller",
+            "music.note": "Music",
+            "hammer.fill": "Hammer",
+            "lightbulb.fill": "Light bulb",
+            "leaf.fill": "Leaf",
+            "figure.run": "Running"
+        ]
+        return map[icon] ?? icon
     }
 }

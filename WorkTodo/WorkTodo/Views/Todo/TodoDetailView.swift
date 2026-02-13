@@ -13,6 +13,7 @@ struct TodoDetailView: View {
     @State private var customReminderDays: Int
     @State private var selectedProject: Project?
     @State private var isSaving = false
+    @State private var showDiscardConfirmation = false
     @FocusState private var focusedField: Field?
 
     @Query(sort: \Project.name) private var projects: [Project]
@@ -131,7 +132,13 @@ struct TodoDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if hasUnsavedChanges {
+                            showDiscardConfirmation = true
+                        } else {
+                            dismiss()
+                        }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "Save" : "Add") {
@@ -147,12 +154,23 @@ struct TodoDetailView: View {
                     } label: {
                         Image(systemName: "keyboard.chevron.compact.down")
                     }
+                    .accessibilityLabel("Dismiss keyboard")
                 }
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+            .confirmationDialog(
+                "Discard Changes?",
+                isPresented: $showDiscardConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Discard Changes", role: .destructive) {
+                    dismiss()
+                }
+                Button("Keep Editing", role: .cancel) { }
+            }
             .task {
                 if !isEditing {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    try? await Task.sleep(nanoseconds: 300_000_000)
                     guard !Task.isCancelled else { return }
                     focusedField = .title
                 }

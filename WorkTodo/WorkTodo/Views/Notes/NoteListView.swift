@@ -35,20 +35,27 @@ struct NoteListView: View {
             Group {
                 if allNotes.isEmpty {
                     emptyState
+                        .transition(.opacity)
                 } else if filteredNotes.isEmpty {
                     ContentUnavailableView.search(text: searchText)
+                        .transition(.opacity)
                 } else {
                     noteList
+                        .transition(.opacity)
                 }
             }
+            .animation(.easeOut(duration: 0.25), value: allNotes.isEmpty)
+            .animation(.easeOut(duration: 0.25), value: filteredNotes.isEmpty)
             .navigationTitle("Notes")
             .searchable(text: $searchText, prompt: "Search notes...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: createNote) {
-                        Image(systemName: "square.and.pencil")
+                        Image(systemName: "plus.circle.fill")
                             .font(.title3)
                     }
+                    .accessibilityLabel("New note")
+                    .accessibilityHint("Creates a new blank note")
                 }
             }
             .sheet(item: $newNote) { note in
@@ -87,7 +94,7 @@ struct NoteListView: View {
         ContentUnavailableView {
             Label("No Notes", systemImage: "note.text")
         } description: {
-            Text("Tap the pencil button to write your first note.")
+            Text("Tap the + button to write your first note.")
         } actions: {
             Button("New Note") {
                 createNote()
@@ -129,6 +136,31 @@ struct NoteListView: View {
                             }
                             .tint(.orange)
                         }
+                        .contextMenu {
+                            Button {
+                                withAnimation { note.isPinned.toggle() }
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                try? modelContext.save()
+                            } label: {
+                                Label(note.isPinned ? "Unpin" : "Pin",
+                                      systemImage: note.isPinned ? "pin.slash" : "pin")
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                noteToDelete = note
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .accessibilityAction(named: note.isPinned ? "Unpin" : "Pin") {
+                            withAnimation { note.isPinned.toggle() }
+                            try? modelContext.save()
+                        }
+                        .accessibilityAction(named: "Delete") {
+                            noteToDelete = note
+                            showDeleteConfirmation = true
+                        }
                     }
                     .onDelete { offsets in
                         requestDeleteNotes(from: pinned, at: offsets)
@@ -165,6 +197,31 @@ struct NoteListView: View {
                                   systemImage: note.isPinned ? "pin.slash" : "pin")
                         }
                         .tint(.orange)
+                    }
+                    .contextMenu {
+                        Button {
+                            withAnimation { note.isPinned.toggle() }
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            try? modelContext.save()
+                        } label: {
+                            Label(note.isPinned ? "Unpin" : "Pin",
+                                  systemImage: note.isPinned ? "pin.slash" : "pin")
+                        }
+                        Divider()
+                        Button(role: .destructive) {
+                            noteToDelete = note
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .accessibilityAction(named: note.isPinned ? "Unpin" : "Pin") {
+                        withAnimation { note.isPinned.toggle() }
+                        try? modelContext.save()
+                    }
+                    .accessibilityAction(named: "Delete") {
+                        noteToDelete = note
+                        showDeleteConfirmation = true
                     }
                 }
                 .onDelete { offsets in

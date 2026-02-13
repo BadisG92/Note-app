@@ -11,71 +11,86 @@ struct TodoRowView: View {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(todo.isCompleted ? .green : .secondary)
-                    .symbolEffect(.bounce, value: todo.isCompleted)
+                    .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel(todo.isCompleted ? "Mark incomplete" : "Mark complete")
+            .accessibilityLabel("Completion")
+            .accessibilityValue(todo.isCompleted ? "Completed" : "Not completed")
+            .accessibilityHint(todo.isCompleted ? "Double tap to mark incomplete" : "Double tap to mark complete")
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(todo.title)
                     .font(.body)
                     .fontWeight(.medium)
                     .strikethrough(todo.isCompleted)
-                    .foregroundStyle(todo.isCompleted ? .tertiary : .primary)
+                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
                     .lineLimit(2)
 
-                HStack(spacing: 8) {
-                    // Due date -- bold red with background when overdue
+                HStack(spacing: 6) {
+                    // Due date
                     if todo.isOverdue {
                         Label(todo.dueDateFormatted, systemImage: "calendar.badge.exclamationmark")
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundStyle(.red)
                             .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
+                            .padding(.vertical, 2)
                             .background(.red.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     } else {
                         Label(todo.dueDateFormatted, systemImage: "calendar")
                             .font(.caption)
-                            .foregroundStyle(todo.isCompleted ? .tertiary : .secondary)
+                            .foregroundStyle(todo.isCompleted ? .secondary : .secondary)
                     }
 
                     // Reminder indicator
                     if todo.reminderFrequency != .none {
+                        Text("\u{00B7}")
+                            .font(.caption)
+                            .foregroundStyle(.quaternary)
                         Label(todo.reminderFrequency.label, systemImage: "bell.fill")
                             .font(.caption)
-                            .foregroundStyle(todo.isCompleted ? .tertiary : .orange)
+                            .foregroundStyle(todo.isCompleted ? .secondary : .orange)
                     }
 
                     // Project indicator
                     if let project = todo.project {
+                        Text("\u{00B7}")
+                            .font(.caption)
+                            .foregroundStyle(.quaternary)
                         Label(project.name, systemImage: project.iconName)
                             .font(.caption)
-                            .foregroundStyle(todo.isCompleted ? .tertiary : project.color)
+                            .foregroundStyle(todo.isCompleted ? .secondary : project.color)
                     }
                 }
 
+                // Details hint icon instead of full preview
                 if !todo.details.isEmpty {
-                    Text(todo.details)
-                        .font(.caption)
-                        .foregroundStyle(todo.isCompleted ? .tertiary : .secondary)
-                        .lineLimit(2)
+                    HStack(spacing: 4) {
+                        Image(systemName: "text.alignleft")
+                            .font(.caption2)
+                        Text(todo.details)
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
                 }
             }
 
             Spacer()
 
             PriorityBadge(priority: todo.priority)
-                .opacity(todo.isCompleted ? 0.5 : 1.0)
+                .opacity(todo.isCompleted ? 0.7 : 1.0)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
         .onTapGesture {
             onEdit?()
         }
+        .animation(.snappy(duration: 0.35), value: todo.isCompleted)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
+        .accessibilityHint(onEdit != nil ? "Double tap to edit task" : "")
     }
 
     private var accessibilityDescription: String {

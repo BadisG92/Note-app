@@ -90,11 +90,12 @@ struct NoteEditorView: View {
                 } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
                 }
+                .accessibilityLabel("Dismiss keyboard")
             }
         }
         .task(id: isNew) {
             if isNew {
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                try? await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
                 isTitleFocused = true
             } else {

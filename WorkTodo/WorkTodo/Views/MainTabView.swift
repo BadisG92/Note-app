@@ -5,8 +5,15 @@ struct MainTabView: View {
     @AppStorage("selectedTab") private var selectedTab = 0
     @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
 
+    /// Badge shows only overdue + due today tasks (actionable items)
     private var badgeCount: Int {
-        allTodos.filter { !$0.isCompleted }.count
+        let calendar = Calendar.current
+        return allTodos.filter { todo in
+            !todo.isCompleted && (
+                todo.isOverdue ||
+                calendar.isDateInToday(todo.dueDate)
+            )
+        }.count
     }
 
     var body: some View {
@@ -18,15 +25,15 @@ struct MainTabView: View {
                 .tag(0)
                 .badge(badgeCount)
 
-            ProjectListView()
-                .tabItem {
-                    Label("Projects", systemImage: "folder.fill")
-                }
-                .tag(1)
-
             NoteListView()
                 .tabItem {
                     Label("Notes", systemImage: "note.text")
+                }
+                .tag(1)
+
+            ProjectListView()
+                .tabItem {
+                    Label("Projects", systemImage: "folder")
                 }
                 .tag(2)
         }

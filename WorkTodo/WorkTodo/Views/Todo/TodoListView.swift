@@ -13,6 +13,8 @@ struct TodoListView: View {
     @State private var selectedProjectFilter: Project?
     @State private var todoToDelete: TodoItem?
     @State private var showDeleteConfirmation = false
+    @State private var quickAddText = ""
+    @FocusState private var isQuickAddFocused: Bool
 
     enum TodoSheetState: Identifiable {
         case add(UUID = UUID())
@@ -82,12 +84,20 @@ struct TodoListView: View {
             Group {
                 if allTodos.isEmpty {
                     emptyState
+                        .transition(.opacity)
                 } else if currentFiltered.isEmpty {
                     filteredEmptyState
+                        .transition(.opacity)
                 } else {
                     todoListContent(currentFiltered)
+                        .transition(.opacity)
                 }
             }
+            .animation(.easeOut(duration: 0.25), value: allTodos.isEmpty)
+            .animation(.easeOut(duration: 0.25), value: currentFiltered.isEmpty)
+            .animation(.default, value: filterMode)
+            .animation(.default, value: sortMode)
+            .animation(.default, value: selectedProjectFilter?.id)
             .navigationTitle("Tasks")
             .searchable(text: $searchText, prompt: "Search tasks...")
             .toolbar {
@@ -96,9 +106,14 @@ struct TodoListView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
                     }
+                    .accessibilityLabel("New task")
+                    .accessibilityHint("Opens form to create a new task")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     filterSortMenu
+                        .accessibilityLabel(hasNonDefaultFilters
+                            ? "Filter and sort, active: \(filterChipLabel)"
+                            : "Filter and sort")
                 }
             }
             .sheet(item: $activeSheet) { state in
@@ -133,7 +148,7 @@ struct TodoListView: View {
         }
     }
 
-    // MARK: - Filter / Sort Menu with active-state indicators
+    // MARK: - Filter / Sort Menu
 
     private var hasNonDefaultFilters: Bool {
         filterMode != .active || sortMode != .dueDate || selectedProjectFilter != nil
@@ -194,8 +209,7 @@ struct TodoListView: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(.blue.opacity(0.12))
-                        .clipShape(Capsule())
+                        .background(.blue.opacity(0.15), in: Capsule())
                 }
             }
         }
@@ -223,7 +237,7 @@ struct TodoListView: View {
         } description: {
             Text("Tap the + button to create your first task.")
         } actions: {
-            Button("Add Task") {
+            Button("New Task") {
                 activeSheet = .add
             }
             .buttonStyle(.borderedProminent)
@@ -234,6 +248,23 @@ struct TodoListView: View {
         Group {
             if !searchText.isEmpty {
                 ContentUnavailableView.search(text: searchText)
+            } else if filterMode == .active && allTodos.contains(where: { $0.isCompleted }) {
+                // User completed everything
+                VStack(spacing: 16) {
+                    Image(systemName: "party.popper")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.orange)
+
+                    Text("All Done!")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text(filteredEmptyDescription)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
             } else {
                 ContentUnavailableView {
                     Label(filteredEmptyTitle, systemImage: filteredEmptyIcon)
@@ -261,49 +292,162 @@ struct TodoListView: View {
     }
 
     private var filteredEmptyDescription: String {
+        let projectContext = selectedProjectFilter != nil
+            ? " in \(selectedProjectFilter!.name)" : ""
         switch filterMode {
         case .completed:
-            return "Tasks you complete will appear here."
+            return "No completed tasks\(projectContext) yet."
         case .active:
-            return "You have no active tasks. Nice work!"
+            return "You have no active tasks\(projectContext). Nice work!"
         case .all:
-            return "No tasks match the current criteria."
+            return "No tasks match the current filters."
         }
     }
 
+    // MARK: - Quick Add
+
+    private var quickAddRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus.circle")
+                .font(.title3)
+                .foregroundStyle(.accentColor)
+
+            TextField("Quick add task...", text: $quickAddText)
+                .font(.body)
+                .focused($isQuickAddFocused)
+                .submitLabel(.done)
+                .onSubmit {
+                    quickAddTask()
+                }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func quickAddTask() {
+        let trimmed = quickAddText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let item = TodoItem(title: trimmed)
+        item.project = selectedProjectFilter
+        modelContext.insert(item)
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        try? modelContext.save()
+
+        withAnimation(.snappy(duration: 0.3)) {
+            quickAddText = ""
+        }
+    }
+
+    // MARK: - Task List Content
+
     private func todoListContent(_ filtered: [TodoItem]) -> some View {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+
         let overdue = filtered.filter { $0.isOverdue }
-        let upcoming = filtered.filter { !$0.isOverdue && !$0.isCompleted }
+        let today = filtered.filter {
+            !$0.isCompleted && !$0.isOverdue
+            && calendar.isDateInToday($0.dueDate)
+        }
+        let tomorrow = filtered.filter {
+            !$0.isCompleted && !$0.isOverdue
+            && calendar.isDateInTomorrow($0.dueDate)
+        }
+        let thisWeek = filtered.filter {
+            guard !$0.isCompleted && !$0.isOverdue else { return false }
+            let start = calendar.date(byAdding: .day, value: 2, to: startOfToday)!
+            let end = calendar.date(byAdding: .day, value: 7, to: startOfToday)!
+            return $0.dueDate >= start && $0.dueDate < end
+        }
+        let later = filtered.filter {
+            guard !$0.isCompleted && !$0.isOverdue else { return false }
+            let end = calendar.date(byAdding: .day, value: 7, to: startOfToday)!
+            return $0.dueDate >= end
+        }
         let completed = filtered.filter { $0.isCompleted }
 
         return List {
+            // Quick add row
+            if filterMode == .active {
+                quickAddRow
+            }
+
             if !overdue.isEmpty {
                 Section {
                     ForEach(overdue) { todo in
                         todoRow(todo)
-                            .listRowBackground(Color.red.opacity(0.04))
+                            .listRowBackground(Color.red.opacity(0.06))
                     }
                     .onDelete { offsets in
                         requestDeleteTodos(from: overdue, at: offsets)
                     }
                 } header: {
-                    Label("Overdue", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        Text("Overdue")
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                }
+            }
+
+            if !today.isEmpty {
+                Section {
+                    ForEach(today) { todo in
+                        todoRow(todo)
+                    }
+                    .onDelete { offsets in
+                        requestDeleteTodos(from: today, at: offsets)
+                    }
+                } header: {
+                    Label("Today", systemImage: "sun.max")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
             }
 
-            if !upcoming.isEmpty {
+            if !tomorrow.isEmpty {
                 Section {
-                    ForEach(upcoming) { todo in
+                    ForEach(tomorrow) { todo in
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        requestDeleteTodos(from: upcoming, at: offsets)
+                        requestDeleteTodos(from: tomorrow, at: offsets)
                     }
                 } header: {
-                    Label("Upcoming", systemImage: "clock")
+                    Label("Tomorrow", systemImage: "sunrise")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+            }
+
+            if !thisWeek.isEmpty {
+                Section {
+                    ForEach(thisWeek) { todo in
+                        todoRow(todo)
+                    }
+                    .onDelete { offsets in
+                        requestDeleteTodos(from: thisWeek, at: offsets)
+                    }
+                } header: {
+                    Label("This Week", systemImage: "calendar")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+            }
+
+            if !later.isEmpty {
+                Section {
+                    ForEach(later) { todo in
+                        todoRow(todo)
+                    }
+                    .onDelete { offsets in
+                        requestDeleteTodos(from: later, at: offsets)
+                    }
+                } header: {
+                    Label("Later", systemImage: "calendar.badge.clock")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
@@ -329,7 +473,7 @@ struct TodoListView: View {
 
     private func todoRow(_ todo: TodoItem) -> some View {
         TodoRowView(todo: todo, onToggle: {
-            withAnimation {
+            withAnimation(.snappy(duration: 0.35)) {
                 todo.toggleCompleted()
             }
             UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -339,6 +483,36 @@ struct TodoListView: View {
         }, onEdit: {
             activeSheet = .edit(todo)
         })
+        .contextMenu {
+            Button {
+                activeSheet = .edit(todo)
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button {
+                withAnimation(.snappy(duration: 0.35)) {
+                    todo.toggleCompleted()
+                }
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                handleNotificationsAfterToggle(todo)
+                try? modelContext.save()
+            } label: {
+                Label(
+                    todo.isCompleted ? "Mark Active" : "Mark Complete",
+                    systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark.circle"
+                )
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                todoToDelete = todo
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 todoToDelete = todo
@@ -347,9 +521,9 @@ struct TodoListView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                withAnimation {
+                withAnimation(.snappy(duration: 0.35)) {
                     todo.toggleCompleted()
                 }
                 UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
@@ -363,6 +537,15 @@ struct TodoListView: View {
                 )
             }
             .tint(todo.isCompleted ? .orange : .green)
+        }
+        .accessibilityAction(named: "Delete") {
+            todoToDelete = todo
+            showDeleteConfirmation = true
+        }
+        .accessibilityAction(named: todo.isCompleted ? "Mark incomplete" : "Mark complete") {
+            todo.toggleCompleted()
+            handleNotificationsAfterToggle(todo)
+            try? modelContext.save()
         }
     }
 
@@ -382,7 +565,7 @@ struct TodoListView: View {
         let todoId = todo.id
         NotificationManager.shared.removeNotifications(forId: todoId)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        withAnimation { modelContext.delete(todo) }
+        withAnimation(.snappy(duration: 0.25)) { modelContext.delete(todo) }
         try? modelContext.save()
     }
 

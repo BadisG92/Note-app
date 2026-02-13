@@ -10,11 +10,13 @@ struct NoteRowView: View {
                     Image(systemName: "pin.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
+                        .transition(.scale.combined(with: .opacity))
                         .accessibilityLabel("Pinned")
                 }
 
                 Text(note.title.isEmpty ? "Untitled Note" : note.title)
-                    .font(.headline)
+                    .font(.body)
+                    .fontWeight(.medium)
                     .lineLimit(1)
 
                 Spacer()
@@ -23,6 +25,7 @@ struct NoteRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .animation(.snappy(duration: 0.3), value: note.isPinned)
 
             if !note.preview.isEmpty {
                 Text(note.preview)
@@ -31,7 +34,7 @@ struct NoteRowView: View {
                     .lineLimit(2)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(noteAccessibilityLabel)
     }
