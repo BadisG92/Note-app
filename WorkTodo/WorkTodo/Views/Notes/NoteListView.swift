@@ -134,7 +134,7 @@ struct NoteListView: View {
                                 Label(note.isPinned ? "Unpin" : "Pin",
                                       systemImage: note.isPinned ? "pin.slash" : "pin")
                             }
-                            .tint(.orange)
+                            .tint(Theme.amber)
                         }
                         .contextMenu {
                             Button {
@@ -196,7 +196,7 @@ struct NoteListView: View {
                             Label(note.isPinned ? "Unpin" : "Pin",
                                   systemImage: note.isPinned ? "pin.slash" : "pin")
                         }
-                        .tint(.orange)
+                        .tint(Theme.amber)
                     }
                     .contextMenu {
                         Button {

@@ -10,7 +10,7 @@ struct TodoRowView: View {
             Button(action: onToggle) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                    .foregroundStyle(todo.isCompleted ? Theme.success : .secondary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.borderless)
@@ -32,10 +32,10 @@ struct TodoRowView: View {
                         Label(todo.dueDateFormatted, systemImage: "calendar.badge.exclamationmark")
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.danger)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background(.red.opacity(0.1))
+                            .background(Theme.danger.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     } else {
                         Label(todo.dueDateFormatted, systemImage: "calendar")
@@ -50,7 +50,7 @@ struct TodoRowView: View {
                             .foregroundStyle(.quaternary)
                         Label(todo.reminderFrequency.label, systemImage: "bell.fill")
                             .font(.caption)
-                            .foregroundStyle(todo.isCompleted ? .secondary : .orange)
+                            .foregroundStyle(todo.isCompleted ? .secondary : Theme.amber)
                     }
 
                     // Project indicator

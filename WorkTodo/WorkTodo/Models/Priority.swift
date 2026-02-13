@@ -20,10 +20,10 @@ enum Priority: Int, Codable, CaseIterable, Identifiable, Comparable {
 
     var color: Color {
         switch self {
-        case .low: return .gray
-        case .medium: return .blue
-        case .high: return .orange
-        case .urgent: return .red
+        case .low: return Theme.stone
+        case .medium: return Theme.mauve
+        case .high: return Theme.amber
+        case .urgent: return Theme.danger
         }
     }
 

@@ -37,7 +37,7 @@ final class Project {
 
     init(
         name: String,
-        colorHex: String = "007AFF",
+        colorHex: String = "C4704B",
         iconName: String = "folder.fill"
     ) {
         let now = Date()
@@ -51,16 +51,16 @@ final class Project {
     }
 
     static let availableColors: [(name: String, hex: String)] = [
-        ("Blue", "007AFF"),
-        ("Purple", "AF52DE"),
-        ("Pink", "FF2D55"),
-        ("Red", "FF3B30"),
-        ("Orange", "FF9500"),
-        ("Yellow", "FFCC00"),
-        ("Green", "34C759"),
-        ("Teal", "5AC8FA"),
-        ("Indigo", "5856D6"),
-        ("Gray", "8E8E93")
+        ("Terracotta", "C4704B"),
+        ("Sage", "7D9B6B"),
+        ("Dusty Rose", "B5727A"),
+        ("Amber", "C8923C"),
+        ("Slate", "728B8E"),
+        ("Mauve", "9678A8"),
+        ("Sand", "B5A073"),
+        ("Clay", "A07558"),
+        ("Storm", "6B7B8B"),
+        ("Espresso", "5C524A")
     ]
 
     static let availableIcons: [String] = [

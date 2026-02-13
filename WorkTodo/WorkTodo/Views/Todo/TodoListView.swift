@@ -209,7 +209,7 @@ struct TodoListView: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(.blue.opacity(0.15), in: Capsule())
+                        .background(Theme.chipBg, in: Capsule())
                 }
             }
         }
@@ -253,7 +253,7 @@ struct TodoListView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "party.popper")
                         .font(.system(size: 48))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.celebration)
 
                     Text("All Done!")
                         .font(.title2)
@@ -377,7 +377,7 @@ struct TodoListView: View {
                 Section {
                     ForEach(overdue) { todo in
                         todoRow(todo)
-                            .listRowBackground(Color.red.opacity(0.06))
+                            .listRowBackground(Theme.dangerBg)
                     }
                     .onDelete { offsets in
                         requestDeleteTodos(from: overdue, at: offsets)
@@ -385,7 +385,7 @@ struct TodoListView: View {
                 } header: {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.danger)
                         Text("Overdue")
                     }
                     .font(.subheadline)
@@ -536,7 +536,7 @@ struct TodoListView: View {
                     systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark"
                 )
             }
-            .tint(todo.isCompleted ? .orange : .green)
+            .tint(todo.isCompleted ? Theme.amber : Theme.success)
         }
         .accessibilityAction(named: "Delete") {
             todoToDelete = todo

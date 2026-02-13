@@ -19,7 +19,7 @@ struct ProjectFormView: View {
         self.existingProject = nil
         self.isEditing = false
         _name = State(initialValue: "")
-        _selectedColorHex = State(initialValue: "007AFF")
+        _selectedColorHex = State(initialValue: "C4704B")
         _selectedIcon = State(initialValue: "folder.fill")
     }
 

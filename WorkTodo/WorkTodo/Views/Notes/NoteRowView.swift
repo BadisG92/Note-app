@@ -9,7 +9,7 @@ struct NoteRowView: View {
                 if note.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.amber)
                         .transition(.scale.combined(with: .opacity))
                         .accessibilityLabel("Pinned")
                 }

@@ -216,7 +216,7 @@ struct ProjectDetailView: View {
                     systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark"
                 )
             }
-            .tint(todo.isCompleted ? .orange : .green)
+            .tint(todo.isCompleted ? Theme.amber : Theme.success)
         }
     }
 
