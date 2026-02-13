@@ -53,6 +53,7 @@ struct NoteListView: View {
             }
             .sheet(item: $newNote) { note in
                 NoteEditorView(note: note, isNew: true)
+                    .presentationDragIndicator(.visible)
             } onDismiss: {
                 cleanupEmptyNewNote()
             }
@@ -178,9 +179,6 @@ struct NoteListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .refreshable {
-            try? await Task.sleep(nanoseconds: 300_000_000)
-        }
     }
 
     // MARK: - Actions

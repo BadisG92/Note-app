@@ -50,6 +50,17 @@ struct TodoDetailView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var hasUnsavedChanges: Bool {
+        if isEditing, let existing = existingItem {
+            return title != existing.title
+                || details != existing.details
+                || dueDate != existing.dueDate
+                || priority != existing.priority
+                || reminderFrequency != existing.reminderFrequency
+        }
+        return !title.isEmpty || !details.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -118,6 +129,7 @@ struct TodoDetailView: View {
                     }
                 }
             }
+            .interactiveDismissDisabled(hasUnsavedChanges)
             .task {
                 if !isEditing {
                     try? await Task.sleep(nanoseconds: 500_000_000)

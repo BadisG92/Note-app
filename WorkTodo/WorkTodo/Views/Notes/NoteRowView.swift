@@ -32,5 +32,15 @@ struct NoteRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(noteAccessibilityLabel)
+    }
+
+    private var noteAccessibilityLabel: String {
+        var parts = [note.title.isEmpty ? "Untitled Note" : note.title]
+        if note.isPinned { parts.append("pinned") }
+        if !note.preview.isEmpty { parts.append(note.preview) }
+        parts.append("updated \(note.updatedFormatted)")
+        return parts.joined(separator: ", ")
     }
 }

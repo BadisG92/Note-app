@@ -24,6 +24,6 @@ struct MainTabView: View {
                 }
                 .tag(1)
         }
-        .tint(.blue)
+        .tint(.accentColor)
     }
 }

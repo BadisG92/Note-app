@@ -60,10 +60,9 @@ struct TodoRowView: View {
             Spacer()
 
             PriorityBadge(priority: todo.priority)
-                .opacity(todo.isCompleted ? 0.45 : 1.0)
+                .opacity(todo.isCompleted ? 0.5 : 1.0)
         }
         .padding(.vertical, 4)
-        .opacity(todo.isCompleted ? 0.7 : 1.0)
         .contentShape(Rectangle())
         .onTapGesture {
             onEdit?()

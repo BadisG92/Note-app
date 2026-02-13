@@ -98,8 +98,10 @@ struct TodoListView: View {
                 switch state {
                 case .add:
                     TodoDetailView()
+                        .presentationDragIndicator(.visible)
                 case .edit(let todo, _):
                     TodoDetailView(todo: todo)
+                        .presentationDragIndicator(.visible)
                 }
             }
             .confirmationDialog(
@@ -151,7 +153,7 @@ struct TodoListView: View {
 
                 if filterMode != .active || sortMode != .dueDate {
                     Text(filterChipLabel)
-                        .font(.caption2)
+                        .font(.caption)
                         .fontWeight(.medium)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -238,6 +240,7 @@ struct TodoListView: View {
                 Section {
                     ForEach(overdue) { todo in
                         todoRow(todo)
+                            .listRowBackground(Color.red.opacity(0.04))
                     }
                     .onDelete { offsets in
                         requestDeleteTodos(from: overdue, at: offsets)
@@ -281,9 +284,6 @@ struct TodoListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .refreshable {
-            try? await Task.sleep(nanoseconds: 300_000_000)
-        }
     }
 
     private func todoRow(_ todo: TodoItem) -> some View {
