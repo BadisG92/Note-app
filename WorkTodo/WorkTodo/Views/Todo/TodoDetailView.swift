@@ -1,0 +1,141 @@
+import SwiftUI
+import SwiftData
+
+struct TodoDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var title: String
+    @State private var details: String
+    @State private var dueDate: Date
+    @State private var priority: Priority
+    @State private var reminderFrequency: ReminderFrequency
+    @State private var customReminderDays: Int
+
+    private var existingItem: TodoItem?
+    private var isEditing: Bool
+
+    // Create new
+    init() {
+        self.existingItem = nil
+        self.isEditing = false
+        _title = State(initialValue: "")
+        _details = State(initialValue: "")
+        _dueDate = State(initialValue: Date())
+        _priority = State(initialValue: .medium)
+        _reminderFrequency = State(initialValue: .none)
+        _customReminderDays = State(initialValue: 1)
+    }
+
+    // Edit existing
+    init(todo: TodoItem) {
+        self.existingItem = todo
+        self.isEditing = true
+        _title = State(initialValue: todo.title)
+        _details = State(initialValue: todo.details)
+        _dueDate = State(initialValue: todo.dueDate)
+        _priority = State(initialValue: todo.priority)
+        _reminderFrequency = State(initialValue: todo.reminderFrequency)
+        _customReminderDays = State(initialValue: todo.customReminderDays)
+    }
+
+    private var isValid: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                // Title & Details
+                Section {
+                    TextField("Task title", text: $title)
+                        .font(.headline)
+
+                    TextField("Details (optional)", text: $details, axis: .vertical)
+                        .lineLimit(3...6)
+                } header: {
+                    Text("Task")
+                }
+
+                // Date
+                Section("Due Date") {
+                    DatePicker(
+                        "Due",
+                        selection: $dueDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
+
+                // Priority
+                Section("Priority") {
+                    Picker("Priority", selection: $priority) {
+                        ForEach(Priority.allCases) { p in
+                            HStack {
+                                Image(systemName: p.systemImage)
+                                    .foregroundStyle(p.color)
+                                Text(p.label)
+                            }
+                            .tag(p)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                // Reminders
+                ReminderFrequencyPicker(
+                    frequency: $reminderFrequency,
+                    customDays: $customReminderDays
+                )
+            }
+            .navigationTitle(isEditing ? "Edit Task" : "New Task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isEditing ? "Save" : "Add") {
+                        save()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!isValid)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else { return }
+
+        if let existing = existingItem {
+            existing.title = trimmedTitle
+            existing.details = details
+            existing.dueDate = dueDate
+            existing.priority = priority
+            existing.reminderFrequency = reminderFrequency
+            existing.customReminderDays = customReminderDays
+            existing.updatedAt = Date()
+
+            Task {
+                await NotificationManager.shared.scheduleNotification(for: existing)
+            }
+        } else {
+            let item = TodoItem(
+                title: trimmedTitle,
+                details: details,
+                dueDate: dueDate,
+                priority: priority,
+                reminderFrequency: reminderFrequency,
+                customReminderDays: customReminderDays
+            )
+            modelContext.insert(item)
+
+            Task {
+                await NotificationManager.shared.scheduleNotification(for: item)
+            }
+        }
+
+        dismiss()
+    }
+}
