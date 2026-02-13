@@ -76,6 +76,7 @@ struct TodoDetailView: View {
                     DatePicker(
                         "Due",
                         selection: $dueDate,
+                        in: (isEditing ? .distantPast : Date())...,
                         displayedComponents: [.date, .hourAndMinute]
                     )
                 }
@@ -118,7 +119,9 @@ struct TodoDetailView: View {
             }
             .onAppear {
                 if !isEditing {
-                    focusedField = .title
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        focusedField = .title
+                    }
                 }
             }
         }
@@ -154,10 +157,14 @@ struct TodoDetailView: View {
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
-        // Schedule synchronously (NotificationManager is @MainActor, we're on MainActor)
-        NotificationManager.shared.scheduleNotification(for: itemToSchedule)
-
+        // Save model context before dismissing
         try? modelContext.save()
+
+        // Schedule notification asynchronously (completes after dismiss)
+        Task {
+            await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
+        }
+
         dismiss()
     }
 }

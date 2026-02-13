@@ -12,7 +12,7 @@ struct TodoRowView: View {
                     .foregroundStyle(todo.isCompleted ? .green : .secondary)
                     .symbolEffect(.bounce, value: todo.isCompleted)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
             .accessibilityLabel(todo.isCompleted ? "Mark incomplete" : "Mark complete")
 
             VStack(alignment: .leading, spacing: 4) {
@@ -63,7 +63,6 @@ struct TodoRowView: View {
         }
         .padding(.vertical, 4)
         .opacity(todo.isCompleted ? 0.7 : 1.0)
-        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
     }

@@ -8,6 +8,7 @@ struct NoteListView: View {
     @State private var searchText = ""
     @State private var newNote: Note?
     @State private var noteToDelete: Note?
+    @State private var showDeleteConfirmation = false
 
     private var filteredNotes: [Note] {
         if searchText.isEmpty {
@@ -19,12 +20,13 @@ struct NoteListView: View {
         }
     }
 
-    private var pinnedNotes: [Note] {
-        filteredNotes.filter { $0.isPinned }
-    }
-
-    private var unpinnedNotes: [Note] {
-        filteredNotes.filter { !$0.isPinned }
+    /// Partition filtered notes once to avoid recomputing filteredNotes
+    /// multiple times per body evaluation.
+    private var partitionedNotes: (pinned: [Note], unpinned: [Note]) {
+        let filtered = filteredNotes
+        let pinned = filtered.filter { $0.isPinned }
+        let unpinned = filtered.filter { !$0.isPinned }
+        return (pinned, unpinned)
     }
 
     var body: some View {
@@ -55,10 +57,7 @@ struct NoteListView: View {
             }
             .confirmationDialog(
                 "Delete Note",
-                isPresented: Binding(
-                    get: { noteToDelete != nil },
-                    set: { if !$0 { noteToDelete = nil } }
-                ),
+                isPresented: $showDeleteConfirmation,
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
@@ -96,10 +95,14 @@ struct NoteListView: View {
     }
 
     private var noteList: some View {
-        List {
-            if !pinnedNotes.isEmpty {
+        let notes = partitionedNotes
+        let pinned = notes.pinned
+        let unpinned = notes.unpinned
+
+        return List {
+            if !pinned.isEmpty {
                 Section {
-                    ForEach(pinnedNotes) { note in
+                    ForEach(pinned) { note in
                         NavigationLink {
                             NoteEditorView(note: note)
                         } label: {
@@ -108,6 +111,7 @@ struct NoteListView: View {
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 noteToDelete = note
+                                showDeleteConfirmation = true
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -124,7 +128,7 @@ struct NoteListView: View {
                         }
                     }
                     .onDelete { offsets in
-                        requestDeleteNotes(from: pinnedNotes, at: offsets)
+                        requestDeleteNotes(from: pinned, at: offsets)
                     }
                 } header: {
                     Label("Pinned", systemImage: "pin.fill")
@@ -134,7 +138,7 @@ struct NoteListView: View {
             }
 
             Section {
-                ForEach(unpinnedNotes) { note in
+                ForEach(unpinned) { note in
                     NavigationLink {
                         NoteEditorView(note: note)
                     } label: {
@@ -143,6 +147,7 @@ struct NoteListView: View {
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             noteToDelete = note
+                            showDeleteConfirmation = true
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
@@ -159,10 +164,10 @@ struct NoteListView: View {
                     }
                 }
                 .onDelete { offsets in
-                    requestDeleteNotes(from: unpinnedNotes, at: offsets)
+                    requestDeleteNotes(from: unpinned, at: offsets)
                 }
             } header: {
-                if !pinnedNotes.isEmpty {
+                if !pinned.isEmpty {
                     Text("Notes")
                         .font(.subheadline)
                         .fontWeight(.semibold)
@@ -184,7 +189,7 @@ struct NoteListView: View {
     }
 
     private func cleanupEmptyNewNote() {
-        if let note = newNote, !note.isDeleted,
+        if let note = newNote, note.modelContext != nil,
            note.title.isEmpty && note.content.isEmpty {
             modelContext.delete(note)
         }
@@ -194,5 +199,6 @@ struct NoteListView: View {
     private func requestDeleteNotes(from source: [Note], at offsets: IndexSet) {
         guard let first = offsets.first else { return }
         noteToDelete = source[first]
+        showDeleteConfirmation = true
     }
 }

@@ -87,7 +87,9 @@ struct NoteEditorView: View {
         }
         .onAppear {
             if isNew {
-                isTitleFocused = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isTitleFocused = true
+                }
             }
         }
     }

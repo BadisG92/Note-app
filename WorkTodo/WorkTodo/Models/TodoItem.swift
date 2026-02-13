@@ -30,29 +30,16 @@ final class TodoItem {
         return Calendar.current.startOfDay(for: dueDate) < Calendar.current.startOfDay(for: Date())
     }
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
-
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f
-    }()
-
     var dueDateFormatted: String {
         let calendar = Calendar.current
         if calendar.isDateInToday(dueDate) {
-            return "Today, \(Self.timeFormatter.string(from: dueDate))"
+            return "Today, \(dueDate.formatted(date: .omitted, time: .shortened))"
         } else if calendar.isDateInTomorrow(dueDate) {
-            return "Tomorrow, \(Self.timeFormatter.string(from: dueDate))"
+            return "Tomorrow, \(dueDate.formatted(date: .omitted, time: .shortened))"
         } else if calendar.isDateInYesterday(dueDate) {
-            return "Yesterday, \(Self.timeFormatter.string(from: dueDate))"
+            return "Yesterday, \(dueDate.formatted(date: .omitted, time: .shortened))"
         } else {
-            return Self.dateFormatter.string(from: dueDate)
+            return dueDate.formatted(date: .abbreviated, time: .shortened)
         }
     }
 

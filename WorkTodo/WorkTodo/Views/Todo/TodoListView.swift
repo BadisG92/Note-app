@@ -10,6 +10,7 @@ struct TodoListView: View {
     @State private var filterMode: FilterMode = .active
     @State private var sortMode: SortMode = .dueDate
     @State private var todoToDelete: TodoItem?
+    @State private var showDeleteConfirmation = false
 
     enum TodoSheetState: Identifiable {
         case add
@@ -36,10 +37,6 @@ struct TodoListView: View {
     }
 
     // MARK: - Computed Properties
-
-    var activeTodoCount: Int {
-        allTodos.filter { !$0.isCompleted }.count
-    }
 
     private var filteredTodos: [TodoItem] {
         var result = allTodos
@@ -107,16 +104,14 @@ struct TodoListView: View {
             }
             .confirmationDialog(
                 "Delete Task",
-                isPresented: Binding(
-                    get: { todoToDelete != nil },
-                    set: { if !$0 { todoToDelete = nil } }
-                ),
+                isPresented: $showDeleteConfirmation,
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
                     if let todo = todoToDelete {
                         performDelete(todo)
                     }
+                    todoToDelete = nil
                 }
                 Button("Cancel", role: .cancel) {
                     todoToDelete = nil
@@ -308,6 +303,7 @@ struct TodoListView: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 todoToDelete = todo
+                showDeleteConfirmation = true
             } label: {
                 Label("Delete", systemImage: "trash")
             }
@@ -336,7 +332,9 @@ struct TodoListView: View {
         if todo.isCompleted {
             NotificationManager.shared.removeNotifications(for: todo)
         } else {
-            NotificationManager.shared.scheduleNotification(for: todo)
+            Task {
+                await NotificationManager.shared.scheduleNotification(for: todo)
+            }
         }
     }
 
@@ -351,5 +349,6 @@ struct TodoListView: View {
     private func requestDeleteTodos(from source: [TodoItem], at offsets: IndexSet) {
         guard let first = offsets.first else { return }
         todoToDelete = source[first]
+        showDeleteConfirmation = true
     }
 }

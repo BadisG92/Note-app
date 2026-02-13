@@ -11,7 +11,7 @@ final class Note {
     var updatedAt: Date
 
     var preview: String {
-        let lines = content.split(separator: "\n", omittingEmptySubsequences: true)
+        let lines = content.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
         let text = lines.first.map(String.init) ?? ""
         if text.count > 100 {
             return String(text.prefix(100)) + "..."
@@ -19,14 +19,8 @@ final class Note {
         return text
     }
 
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .abbreviated
-        return f
-    }()
-
     var updatedFormatted: String {
-        Self.relativeFormatter.localizedString(for: updatedAt, relativeTo: Date())
+        updatedAt.formatted(.relative(presentation: .named))
     }
 
     init(title: String = "", content: String = "") {

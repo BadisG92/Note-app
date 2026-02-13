@@ -26,18 +26,19 @@ final class NotificationManager: ObservableObject {
 
     // MARK: - Schedule Notifications for a TodoItem
 
-    func scheduleNotification(for item: TodoItem) {
+    func scheduleNotification(for item: TodoItem) async {
         removeNotifications(for: item)
 
+        guard isAuthorized else { return }
         guard item.reminderFrequency != .none, !item.isCompleted else { return }
 
         switch item.reminderFrequency {
         case .none:
             break
         case .daily:
-            scheduleDailyRepeating(for: item)
+            await scheduleDailyRepeating(for: item)
         case .weekly:
-            scheduleWeeklyRepeating(for: item)
+            await scheduleWeeklyRepeating(for: item)
         case .biweekly, .monthly, .custom:
             let component: Calendar.Component
             let value: Int
@@ -50,11 +51,11 @@ final class NotificationManager: ObservableObject {
             } else {
                 return
             }
-            scheduleFiniteRecurring(for: item, component: component, value: value)
+            await scheduleFiniteRecurring(for: item, component: component, value: value)
         }
     }
 
-    private func scheduleDailyRepeating(for item: TodoItem) {
+    private func scheduleDailyRepeating(for item: TodoItem) async {
         let content = makeContent(for: item)
         let dateComponents = Calendar.current.dateComponents(
             [.hour, .minute],
@@ -72,12 +73,14 @@ final class NotificationManager: ObservableObject {
             trigger: trigger
         )
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error { print("Failed to schedule daily notification: \(error)") }
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule daily notification: \(error)")
         }
     }
 
-    private func scheduleWeeklyRepeating(for item: TodoItem) {
+    private func scheduleWeeklyRepeating(for item: TodoItem) async {
         let content = makeContent(for: item)
         let dateComponents = Calendar.current.dateComponents(
             [.weekday, .hour, .minute],
@@ -95,22 +98,25 @@ final class NotificationManager: ObservableObject {
             trigger: trigger
         )
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error { print("Failed to schedule weekly notification: \(error)") }
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule weekly notification: \(error)")
         }
     }
 
-    private func scheduleFiniteRecurring(for item: TodoItem, component: Calendar.Component, value: Int) {
+    private func scheduleFiniteRecurring(for item: TodoItem, component: Calendar.Component, value: Int) async {
         let content = makeContent(for: item)
         let now = Date()
         var scheduledCount = 0
         let maxSlots = 10
 
         if item.dueDate > now {
-            let dateComponents = Calendar.current.dateComponents(
+            var dateComponents = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute],
                 from: item.dueDate
             )
+            dateComponents.timeZone = TimeZone.current
 
             let trigger = UNCalendarNotificationTrigger(
                 dateMatching: dateComponents,
@@ -123,43 +129,55 @@ final class NotificationManager: ObservableObject {
                 trigger: trigger
             )
 
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error { print("Failed to schedule initial notification: \(error)") }
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+            } catch {
+                print("Failed to schedule initial notification: \(error)")
             }
             scheduledCount += 1
         }
 
-        for i in 1...maxSlots {
-            guard scheduledCount < maxSlots else { break }
-
+        var multiplier = 1
+        let maxIterations = 1000 // Safety bound to avoid infinite loops for very old tasks
+        while scheduledCount < maxSlots, multiplier <= maxIterations {
             guard let nextDate = Calendar.current.date(
                 byAdding: component,
-                value: value * i,
+                value: value * multiplier,
                 to: item.dueDate
-            ) else { continue }
+            ) else {
+                multiplier += 1
+                continue
+            }
+
+            multiplier += 1
 
             guard nextDate > now else { continue }
 
-            if nextDate.timeIntervalSinceNow > 60 * 24 * 3600 { break }
+            let sixtyDays = Calendar.current.date(byAdding: .day, value: 60, to: now)!
+            if nextDate > sixtyDays { break }
 
-            let recurringComponents = Calendar.current.dateComponents(
+            var recurringComponents = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute],
                 from: nextDate
             )
+            recurringComponents.timeZone = TimeZone.current
 
             let recurringTrigger = UNCalendarNotificationTrigger(
                 dateMatching: recurringComponents,
                 repeats: false
             )
 
+            let slotIndex = scheduledCount + 1
             let recurringRequest = UNNotificationRequest(
-                identifier: "\(item.id.uuidString)-recurring-\(i)",
+                identifier: "\(item.id.uuidString)-recurring-\(slotIndex)",
                 content: content,
                 trigger: recurringTrigger
             )
 
-            UNUserNotificationCenter.current().add(recurringRequest) { error in
-                if let error { print("Failed to schedule recurring notification \(i): \(error)") }
+            do {
+                try await UNUserNotificationCenter.current().add(recurringRequest)
+            } catch {
+                print("Failed to schedule recurring notification \(slotIndex): \(error)")
             }
             scheduledCount += 1
         }

@@ -48,6 +48,9 @@ struct WorkTodoApp: App {
                     switch newPhase {
                     case .active:
                         NotificationManager.clearBadge()
+                        Task {
+                            await NotificationManager.shared.checkAuthorizationStatus()
+                        }
                     case .background:
                         try? sharedModelContainer.mainContext.save()
                     default:
