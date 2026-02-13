@@ -43,6 +43,16 @@ struct TodoRowView: View {
                             .foregroundStyle(todo.isCompleted ? .secondary : .secondary)
                     }
 
+                    // Recurrence indicator
+                    if todo.recurrenceRule != .none {
+                        Text("\u{00B7}")
+                            .font(.caption)
+                            .foregroundStyle(.quaternary)
+                        Label(todo.recurrenceRule.label, systemImage: "arrow.triangle.2.circlepath")
+                            .font(.caption)
+                            .foregroundStyle(todo.isCompleted ? .secondary : Theme.mauve)
+                    }
+
                     // Reminder indicator
                     if todo.reminderFrequency != .none {
                         Text("\u{00B7}")
@@ -64,7 +74,42 @@ struct TodoRowView: View {
                     }
                 }
 
-                // Details hint icon instead of full preview
+                // Tags
+                if !todo.tags.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(todo.tags.prefix(4)) { tag in
+                            Text(tag.name)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(tag.color.opacity(0.15))
+                                .foregroundStyle(tag.color)
+                                .clipShape(Capsule())
+                        }
+                        if todo.tags.count > 4 {
+                            Text("+\(todo.tags.count - 4)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // Subtasks progress
+                if !todo.subtasks.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "list.bullet")
+                            .font(.caption2)
+                        Text("\(todo.completedSubtaskCount)/\(todo.subtasks.count)")
+                            .font(.caption)
+                        ProgressView(value: todo.subtaskProgress)
+                            .tint(todo.subtaskProgress >= 1.0 ? Theme.success : Theme.amber)
+                            .frame(maxWidth: 60)
+                    }
+                    .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
+                }
+
+                // Details hint
                 if !todo.details.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "text.alignleft")
@@ -100,6 +145,13 @@ struct TodoRowView: View {
         parts.append("due \(todo.dueDateFormatted)")
         if todo.isOverdue { parts.append("overdue") }
         if let project = todo.project { parts.append("project \(project.name)") }
+        if todo.recurrenceRule != .none { parts.append("repeats \(todo.recurrenceRule.label)") }
+        if !todo.tags.isEmpty {
+            parts.append("tags: \(todo.tags.map(\.name).joined(separator: ", "))")
+        }
+        if !todo.subtasks.isEmpty {
+            parts.append("\(todo.completedSubtaskCount) of \(todo.subtasks.count) subtasks done")
+        }
         return parts.joined(separator: ", ")
     }
 }

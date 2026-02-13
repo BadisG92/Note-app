@@ -22,14 +22,18 @@ struct ProjectDetailView: View {
         }
     }
 
+    private var topLevelTodos: [TodoItem] {
+        project.todos.filter { !$0.isSubtask }
+    }
+
     private var activeTodos: [TodoItem] {
-        project.todos
+        topLevelTodos
             .filter { !$0.isCompleted }
             .sorted { $0.dueDate < $1.dueDate }
     }
 
     private var completedTodos: [TodoItem] {
-        project.todos
+        topLevelTodos
             .filter { $0.isCompleted }
             .sorted { ($0.completedAt ?? $0.updatedAt) > ($1.completedAt ?? $1.updatedAt) }
     }
@@ -168,19 +172,7 @@ struct ProjectDetailView: View {
 
     private func todoRow(_ todo: TodoItem) -> some View {
         TodoRowView(todo: todo, onToggle: {
-            withAnimation(.snappy(duration: Theme.animSmooth)) {
-                todo.toggleCompleted()
-            }
-            UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
-                .impactOccurred()
-            if todo.isCompleted {
-                NotificationManager.shared.removeNotifications(for: todo)
-            } else {
-                Task {
-                    await NotificationManager.shared.scheduleNotification(for: todo)
-                }
-            }
-            try? modelContext.save()
+            toggleTodo(todo)
         }, onEdit: {
             activeSheet = .edit(todo)
         })
@@ -194,19 +186,7 @@ struct ProjectDetailView: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                withAnimation(.snappy(duration: Theme.animSmooth)) {
-                    todo.toggleCompleted()
-                }
-                UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
-                    .impactOccurred()
-                if todo.isCompleted {
-                    NotificationManager.shared.removeNotifications(for: todo)
-                } else {
-                    Task {
-                        await NotificationManager.shared.scheduleNotification(for: todo)
-                    }
-                }
-                try? modelContext.save()
+                toggleTodo(todo)
             } label: {
                 Label(
                     todo.isCompleted ? "Undo" : "Done",
@@ -215,6 +195,29 @@ struct ProjectDetailView: View {
             }
             .tint(todo.isCompleted ? Theme.amber : Theme.success)
         }
+    }
+
+    private func toggleTodo(_ todo: TodoItem) {
+        withAnimation(.snappy(duration: Theme.animSmooth)) {
+            todo.toggleCompleted()
+        }
+        UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
+            .impactOccurred()
+        if todo.isCompleted {
+            NotificationManager.shared.removeNotifications(for: todo)
+            // Create next occurrence for recurring tasks
+            if let nextOccurrence = todo.createNextOccurrence() {
+                modelContext.insert(nextOccurrence)
+                Task {
+                    await NotificationManager.shared.scheduleNotification(for: nextOccurrence)
+                }
+            }
+        } else {
+            Task {
+                await NotificationManager.shared.scheduleNotification(for: todo)
+            }
+        }
+        try? modelContext.save()
     }
 
     // MARK: - Actions

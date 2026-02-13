@@ -9,7 +9,8 @@ struct WorkTodoApp: App {
         let schema = Schema([
             TodoItem.self,
             Note.self,
-            Project.self
+            Project.self,
+            Tag.self
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,

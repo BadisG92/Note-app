@@ -10,6 +10,7 @@ struct NoteEditorView: View {
     @FocusState private var isContentFocused: Bool
     @State private var originalTitle: String
     @State private var originalContent: String
+    @State private var showMarkdownPreview = false
 
     private var isNew: Bool
 
@@ -18,6 +19,12 @@ struct NoteEditorView: View {
         self.isNew = isNew
         _originalTitle = State(initialValue: note.title)
         _originalContent = State(initialValue: note.content)
+    }
+
+    private var hasMarkdownContent: Bool {
+        let c = note.content
+        return c.contains("**") || c.contains("# ") || c.contains("- ") || c.contains("```")
+            || c.contains("*") || c.contains("> ") || c.contains("~~")
     }
 
     private var editorContent: some View {
@@ -37,11 +44,17 @@ struct NoteEditorView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
 
-            TextEditor(text: $note.content)
-                .font(.body)
-                .focused($isContentFocused)
-                .padding(.horizontal, 12)
-                .scrollContentBackground(.hidden)
+            if showMarkdownPreview {
+                MarkdownRendererView(content: note.content)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            } else {
+                TextEditor(text: $note.content)
+                    .font(.body)
+                    .focused($isContentFocused)
+                    .padding(.horizontal, 12)
+                    .scrollContentBackground(.hidden)
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
         }
         .navigationTitle(isNew ? "New Note" : "Edit Note")
         .navigationBarTitleDisplayMode(.inline)
@@ -70,20 +83,51 @@ struct NoteEditorView: View {
             }
 
             ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    note.isPinned.toggle()
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    try? modelContext.save()
+                Menu {
+                    Button {
+                        note.isPinned.toggle()
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        try? modelContext.save()
+                    } label: {
+                        Label(
+                            note.isPinned ? "Unpin" : "Pin",
+                            systemImage: note.isPinned ? "pin.slash" : "pin"
+                        )
+                    }
+
+                    if hasMarkdownContent || showMarkdownPreview {
+                        Button {
+                            withAnimation(.easeInOut(duration: Theme.animDefault)) {
+                                showMarkdownPreview.toggle()
+                            }
+                        } label: {
+                            Label(
+                                showMarkdownPreview ? "Edit" : "Preview",
+                                systemImage: showMarkdownPreview ? "pencil" : "eye"
+                            )
+                        }
+                    }
                 } label: {
-                    Label(
-                        note.isPinned ? "Unpin" : "Pin",
-                        systemImage: note.isPinned ? "pin.slash" : "pin"
-                    )
+                    Image(systemName: "ellipsis.circle")
                 }
             }
 
             ToolbarItemGroup(placement: .keyboard) {
+                // Markdown formatting quick buttons
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        markdownButton("**B**", insert: "****", cursorOffset: 2, label: "Bold")
+                        markdownButton("*I*", insert: "**", cursorOffset: 1, label: "Italic")
+                        markdownButton("~~S~~", insert: "~~~~", cursorOffset: 2, label: "Strikethrough")
+                        markdownButton("`C`", insert: "``", cursorOffset: 1, label: "Code")
+                        markdownButton("H1", insert: "# ", cursorOffset: 2, label: "Heading")
+                        markdownButton("- ", insert: "- ", cursorOffset: 2, label: "Bullet")
+                        markdownButton("> ", insert: "> ", cursorOffset: 2, label: "Quote")
+                    }
+                }
+
                 Spacer()
+
                 Button {
                     isTitleFocused = false
                     isContentFocused = false
@@ -120,5 +164,23 @@ struct NoteEditorView: View {
         } else {
             editorContent
         }
+    }
+
+    // MARK: - Markdown Formatting Buttons
+
+    private func markdownButton(_ label: String, insert: String, cursorOffset: Int, label accessibilityLabel: String) -> some View {
+        Button {
+            note.content += insert
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(label)
+                .font(.system(.caption, design: .monospaced))
+                .fontWeight(.medium)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .accessibilityLabel(accessibilityLabel)
     }
 }

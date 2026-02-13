@@ -21,6 +21,13 @@ struct NoteRowView: View {
 
                 Spacer()
 
+                if hasMarkdown {
+                    Image(systemName: "text.badge.star")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.mauve)
+                        .accessibilityLabel("Markdown")
+                }
+
                 Text(note.updatedFormatted)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -37,6 +44,11 @@ struct NoteRowView: View {
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(noteAccessibilityLabel)
+    }
+
+    private var hasMarkdown: Bool {
+        let c = note.content
+        return c.contains("**") || c.contains("# ") || c.contains("```")
     }
 
     private var noteAccessibilityLabel: String {

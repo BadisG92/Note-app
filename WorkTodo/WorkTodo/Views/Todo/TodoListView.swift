@@ -5,12 +5,14 @@ struct TodoListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
     @Query(sort: \Project.name) private var projects: [Project]
+    @Query(sort: \Tag.name) private var allTags: [Tag]
 
     @State private var activeSheet: TodoSheetState?
     @State private var searchText = ""
     @State private var filterMode: FilterMode = .active
     @State private var sortMode: SortMode = .dueDate
     @State private var selectedProjectFilter: Project?
+    @State private var selectedTagFilter: Tag?
     @State private var todoToDelete: TodoItem?
     @State private var showDeleteConfirmation = false
     @State private var quickAddText = ""
@@ -45,12 +47,22 @@ struct TodoListView: View {
 
     // MARK: - Computed Properties
 
+    /// Top-level tasks only (excludes subtasks from main list)
+    private var topLevelTodos: [TodoItem] {
+        allTodos.filter { !$0.isSubtask }
+    }
+
     private var filteredTodos: [TodoItem] {
-        var result = allTodos
+        var result = topLevelTodos
 
         // Project filter
         if let projectFilter = selectedProjectFilter {
             result = result.filter { $0.project?.id == projectFilter.id }
+        }
+
+        // Tag filter
+        if let tagFilter = selectedTagFilter {
+            result = result.filter { $0.tags.contains(where: { $0.id == tagFilter.id }) }
         }
 
         switch filterMode {
@@ -85,20 +97,14 @@ struct TodoListView: View {
         let currentFiltered = filteredTodos
         NavigationStack {
             Group {
-                if allTodos.isEmpty {
+                if topLevelTodos.isEmpty {
                     emptyState
                         .transition(.opacity)
                 } else if showCalendar {
                     CalendarView(
                         todos: currentFiltered,
                         onToggle: { todo in
-                            withAnimation(.snappy(duration: Theme.animSmooth)) {
-                                todo.toggleCompleted()
-                            }
-                            UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
-                                .impactOccurred()
-                            handleNotificationsAfterToggle(todo)
-                            try? modelContext.save()
+                            toggleTodoCompleted(todo)
                         },
                         onEdit: { todo in
                             activeSheet = .edit(todo)
@@ -121,12 +127,13 @@ struct TodoListView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: Theme.animDefault), value: allTodos.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: topLevelTodos.isEmpty)
             .animation(.easeOut(duration: Theme.animDefault), value: currentFiltered.isEmpty)
             .animation(.easeOut(duration: Theme.animDefault), value: showCalendar)
             .animation(.default, value: filterMode)
             .animation(.default, value: sortMode)
             .animation(.default, value: selectedProjectFilter?.id)
+            .animation(.default, value: selectedTagFilter?.id)
             .navigationTitle("Tasks")
             .searchable(text: $searchText, prompt: "Search tasks...")
             .toolbar {
@@ -196,7 +203,7 @@ struct TodoListView: View {
     // MARK: - Filter / Sort Menu
 
     private var hasNonDefaultFilters: Bool {
-        filterMode != .active || sortMode != .dueDate || selectedProjectFilter != nil
+        filterMode != .active || sortMode != .dueDate || selectedProjectFilter != nil || selectedTagFilter != nil
     }
 
     private var filterSortMenu: some View {
@@ -220,6 +227,37 @@ struct TodoListView: View {
                             HStack {
                                 Label(project.name, systemImage: project.iconName)
                                 if selectedProjectFilter?.id == project.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !allTags.isEmpty {
+                Section("Tag") {
+                    Button {
+                        selectedTagFilter = nil
+                    } label: {
+                        HStack {
+                            Text("All Tags")
+                            if selectedTagFilter == nil {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    ForEach(allTags) { tag in
+                        Button {
+                            selectedTagFilter = tag
+                        } label: {
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(tag.color)
+                                        .frame(width: 8, height: 8)
+                                    Text(tag.name)
+                                }
+                                if selectedTagFilter?.id == tag.id {
                                     Image(systemName: "checkmark")
                                 }
                             }
@@ -265,6 +303,9 @@ struct TodoListView: View {
         if let project = selectedProjectFilter {
             parts.append(project.name)
         }
+        if let tag = selectedTagFilter {
+            parts.append(tag.name)
+        }
         if filterMode != .active {
             parts.append(filterMode.rawValue)
         }
@@ -294,7 +335,7 @@ struct TodoListView: View {
         Group {
             if !searchText.isEmpty {
                 ContentUnavailableView.search(text: searchText)
-            } else if filterMode == .active && allTodos.contains(where: { $0.isCompleted }) {
+            } else if filterMode == .active && topLevelTodos.contains(where: { $0.isCompleted }) {
                 // User completed everything
                 VStack(spacing: 16) {
                     Image(systemName: "party.popper")
@@ -508,13 +549,7 @@ struct TodoListView: View {
 
     private func todoRow(_ todo: TodoItem) -> some View {
         TodoRowView(todo: todo, onToggle: {
-            withAnimation(.snappy(duration: Theme.animSmooth)) {
-                todo.toggleCompleted()
-            }
-            UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
-                .impactOccurred()
-            handleNotificationsAfterToggle(todo)
-            try? modelContext.save()
+            toggleTodoCompleted(todo)
         }, onEdit: {
             activeSheet = .edit(todo)
         })
@@ -526,12 +561,7 @@ struct TodoListView: View {
             }
 
             Button {
-                withAnimation(.snappy(duration: Theme.animSmooth)) {
-                    todo.toggleCompleted()
-                }
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                handleNotificationsAfterToggle(todo)
-                try? modelContext.save()
+                toggleTodoCompleted(todo)
             } label: {
                 Label(
                     todo.isCompleted ? "Mark Active" : "Mark Complete",
@@ -558,13 +588,7 @@ struct TodoListView: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                withAnimation(.snappy(duration: Theme.animSmooth)) {
-                    todo.toggleCompleted()
-                }
-                UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
-                    .impactOccurred()
-                handleNotificationsAfterToggle(todo)
-                try? modelContext.save()
+                toggleTodoCompleted(todo)
             } label: {
                 Label(
                     todo.isCompleted ? "Undo" : "Done",
@@ -578,13 +602,30 @@ struct TodoListView: View {
             showDeleteConfirmation = true
         }
         .accessibilityAction(named: todo.isCompleted ? "Mark incomplete" : "Mark complete") {
-            todo.toggleCompleted()
-            handleNotificationsAfterToggle(todo)
-            try? modelContext.save()
+            toggleTodoCompleted(todo)
         }
     }
 
     // MARK: - Actions
+
+    private func toggleTodoCompleted(_ todo: TodoItem) {
+        withAnimation(.snappy(duration: Theme.animSmooth)) {
+            todo.toggleCompleted()
+        }
+        UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
+            .impactOccurred()
+        handleNotificationsAfterToggle(todo)
+
+        // If completing a recurring task, create the next occurrence
+        if todo.isCompleted, let nextOccurrence = todo.createNextOccurrence() {
+            modelContext.insert(nextOccurrence)
+            Task {
+                await NotificationManager.shared.scheduleNotification(for: nextOccurrence)
+            }
+        }
+
+        try? modelContext.save()
+    }
 
     private func handleNotificationsAfterToggle(_ todo: TodoItem) {
         if todo.isCompleted {

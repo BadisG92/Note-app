@@ -17,6 +17,22 @@ final class TodoItem {
 
     var project: Project?
 
+    // MARK: - Subtasks
+
+    var parentTask: TodoItem?
+
+    @Relationship(deleteRule: .cascade, inverse: \TodoItem.parentTask)
+    var subtasks: [TodoItem]
+
+    // MARK: - Recurrence
+
+    var recurrenceRuleRaw: String
+
+    // MARK: - Tags
+
+    @Relationship(deleteRule: .nullify, inverse: \Tag.todos)
+    var tags: [Tag]
+
     var priority: Priority {
         get { Priority(rawValue: priorityRaw) ?? .medium }
         set { priorityRaw = newValue.rawValue }
@@ -25,6 +41,11 @@ final class TodoItem {
     var reminderFrequency: ReminderFrequency {
         get { ReminderFrequency(rawValue: reminderFrequencyRaw) ?? .none }
         set { reminderFrequencyRaw = newValue.rawValue }
+    }
+
+    var recurrenceRule: RecurrenceRule {
+        get { RecurrenceRule(rawValue: recurrenceRuleRaw) ?? .none }
+        set { recurrenceRuleRaw = newValue.rawValue }
     }
 
     var isOverdue: Bool {
@@ -45,13 +66,31 @@ final class TodoItem {
         }
     }
 
+    var isSubtask: Bool {
+        parentTask != nil
+    }
+
+    var activeSubtaskCount: Int {
+        subtasks.filter { !$0.isCompleted }.count
+    }
+
+    var completedSubtaskCount: Int {
+        subtasks.filter { $0.isCompleted }.count
+    }
+
+    var subtaskProgress: Double {
+        guard !subtasks.isEmpty else { return 0 }
+        return Double(completedSubtaskCount) / Double(subtasks.count)
+    }
+
     init(
         title: String,
         details: String = "",
         dueDate: Date = Date(),
         priority: Priority = .medium,
         reminderFrequency: ReminderFrequency = .none,
-        customReminderDays: Int = 1
+        customReminderDays: Int = 1,
+        recurrenceRule: RecurrenceRule = .none
     ) {
         let now = Date()
         self.id = UUID()
@@ -63,13 +102,35 @@ final class TodoItem {
         self.priorityRaw = priority.rawValue
         self.reminderFrequencyRaw = reminderFrequency.rawValue
         self.customReminderDays = max(1, customReminderDays)
+        self.recurrenceRuleRaw = recurrenceRule.rawValue
         self.createdAt = now
         self.updatedAt = now
+        self.subtasks = []
+        self.tags = []
     }
 
     func toggleCompleted() {
         isCompleted.toggle()
         completedAt = isCompleted ? Date() : nil
         updatedAt = Date()
+    }
+
+    /// Creates the next occurrence of a recurring task. Returns nil if not recurring.
+    func createNextOccurrence() -> TodoItem? {
+        guard recurrenceRule != .none else { return nil }
+        guard let nextDate = recurrenceRule.nextDate(from: dueDate) else { return nil }
+
+        let next = TodoItem(
+            title: title,
+            details: details,
+            dueDate: nextDate,
+            priority: priority,
+            reminderFrequency: reminderFrequency,
+            customReminderDays: customReminderDays,
+            recurrenceRule: recurrenceRule
+        )
+        next.project = project
+        next.tags = tags
+        return next
     }
 }

@@ -5,11 +5,11 @@ struct MainTabView: View {
     @AppStorage("selectedTab") private var selectedTab = 0
     @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
 
-    /// Badge shows only overdue + due today tasks (actionable items)
+    /// Badge shows only overdue + due today top-level tasks (actionable items)
     private var badgeCount: Int {
         let calendar = Calendar.current
         return allTodos.filter { todo in
-            !todo.isCompleted && (
+            !todo.isSubtask && !todo.isCompleted && (
                 todo.isOverdue ||
                 calendar.isDateInToday(todo.dueDate)
             )

@@ -12,11 +12,16 @@ struct TodoDetailView: View {
     @State private var reminderFrequency: ReminderFrequency
     @State private var customReminderDays: Int
     @State private var selectedProject: Project?
+    @State private var recurrenceRule: RecurrenceRule
+    @State private var selectedTags: Set<UUID>
+    @State private var newSubtaskTitle = ""
     @State private var isSaving = false
     @State private var showDiscardConfirmation = false
+    @State private var showNewTagSheet = false
     @FocusState private var focusedField: Field?
 
     @Query(sort: \Project.name) private var projects: [Project]
+    @Query(sort: \Tag.name) private var allTags: [Tag]
 
     private var existingItem: TodoItem?
     private var isEditing: Bool
@@ -24,6 +29,7 @@ struct TodoDetailView: View {
     private enum Field: Hashable {
         case title
         case details
+        case subtask
     }
 
     // Create new
@@ -37,6 +43,8 @@ struct TodoDetailView: View {
         _reminderFrequency = State(initialValue: .none)
         _customReminderDays = State(initialValue: 1)
         _selectedProject = State(initialValue: project)
+        _recurrenceRule = State(initialValue: .none)
+        _selectedTags = State(initialValue: [])
     }
 
     // Edit existing
@@ -50,6 +58,8 @@ struct TodoDetailView: View {
         _reminderFrequency = State(initialValue: todo.reminderFrequency)
         _customReminderDays = State(initialValue: todo.customReminderDays)
         _selectedProject = State(initialValue: todo.project)
+        _recurrenceRule = State(initialValue: todo.recurrenceRule)
+        _selectedTags = State(initialValue: Set(todo.tags.map(\.id)))
     }
 
     private var isValid: Bool {
@@ -64,6 +74,8 @@ struct TodoDetailView: View {
                 || priority != existing.priority
                 || reminderFrequency != existing.reminderFrequency
                 || selectedProject?.id != existing.project?.id
+                || recurrenceRule != existing.recurrenceRule
+                || selectedTags != Set(existing.tags.map(\.id))
         }
         return !title.isEmpty || !details.isEmpty
     }
@@ -123,10 +135,121 @@ struct TodoDetailView: View {
                     .pickerStyle(.segmented)
                 }
 
+                // MARK: - Recurrence
+
+                Section {
+                    Picker("Repeat", selection: $recurrenceRule) {
+                        ForEach(RecurrenceRule.allCases) { rule in
+                            Text(rule.label).tag(rule)
+                        }
+                    }
+                } header: {
+                    Text("Recurrence")
+                } footer: {
+                    if recurrenceRule != .none {
+                        Text("A new task will be created automatically when you complete this one.")
+                    }
+                }
+
                 ReminderFrequencyPicker(
                     frequency: $reminderFrequency,
                     customDays: $customReminderDays
                 )
+
+                // MARK: - Tags
+
+                Section {
+                    if allTags.isEmpty {
+                        Button {
+                            showNewTagSheet = true
+                        } label: {
+                            Label("Create your first tag", systemImage: "plus.circle")
+                        }
+                    } else {
+                        ForEach(allTags) { tag in
+                            Button {
+                                toggleTag(tag)
+                            } label: {
+                                HStack {
+                                    Circle()
+                                        .fill(tag.color)
+                                        .frame(width: 12, height: 12)
+                                    Text(tag.name)
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    if selectedTags.contains(tag.id) {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                            }
+                        }
+                        Button {
+                            showNewTagSheet = true
+                        } label: {
+                            Label("New Tag", systemImage: "plus.circle")
+                                .font(.subheadline)
+                        }
+                    }
+                } header: {
+                    Text("Tags")
+                }
+
+                // MARK: - Subtasks (only when editing)
+
+                if isEditing, let existing = existingItem {
+                    Section {
+                        ForEach(existing.subtasks.sorted(by: { !$0.isCompleted && $1.isCompleted })) { subtask in
+                            HStack(spacing: 10) {
+                                Button {
+                                    withAnimation(.snappy(duration: Theme.animSmooth)) {
+                                        subtask.toggleCompleted()
+                                    }
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    try? modelContext.save()
+                                } label: {
+                                    Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(subtask.isCompleted ? Theme.success : .secondary)
+                                        .contentTransition(.symbolEffect(.replace))
+                                }
+                                .buttonStyle(.borderless)
+
+                                Text(subtask.title)
+                                    .strikethrough(subtask.isCompleted)
+                                    .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
+                            }
+                        }
+                        .onDelete { offsets in
+                            let sorted = existing.subtasks.sorted(by: { !$0.isCompleted && $1.isCompleted })
+                            for index in offsets {
+                                modelContext.delete(sorted[index])
+                            }
+                            try? modelContext.save()
+                        }
+
+                        HStack(spacing: 10) {
+                            Image(systemName: "plus.circle")
+                                .foregroundStyle(.tint)
+                            TextField("Add subtask...", text: $newSubtaskTitle)
+                                .focused($focusedField, equals: .subtask)
+                                .submitLabel(.done)
+                                .onSubmit {
+                                    addSubtask(to: existing)
+                                }
+                        }
+                    } header: {
+                        HStack {
+                            Text("Subtasks")
+                            if !existing.subtasks.isEmpty {
+                                Spacer()
+                                Text("\(existing.completedSubtaskCount)/\(existing.subtasks.count)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle(isEditing ? "Edit Task" : "New Task")
             .navigationBarTitleDisplayMode(.inline)
@@ -168,6 +291,11 @@ struct TodoDetailView: View {
                 }
                 Button("Keep Editing", role: .cancel) { }
             }
+            .sheet(isPresented: $showNewTagSheet) {
+                NewTagSheet { tag in
+                    selectedTags.insert(tag.id)
+                }
+            }
             .task {
                 if !isEditing {
                     try? await Task.sleep(nanoseconds: 300_000_000)
@@ -176,6 +304,31 @@ struct TodoDetailView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Actions
+
+    private func toggleTag(_ tag: Tag) {
+        if selectedTags.contains(tag.id) {
+            selectedTags.remove(tag.id)
+        } else {
+            selectedTags.insert(tag.id)
+        }
+    }
+
+    private func addSubtask(to parent: TodoItem) {
+        let trimmed = newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let subtask = TodoItem(title: trimmed, dueDate: parent.dueDate)
+        subtask.parentTask = parent
+        subtask.project = parent.project
+        modelContext.insert(subtask)
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        try? modelContext.save()
+
+        newSubtaskTitle = ""
     }
 
     private func save() async {
@@ -195,6 +348,8 @@ struct TodoDetailView: View {
             existing.reminderFrequency = reminderFrequency
             existing.customReminderDays = customReminderDays
             existing.project = selectedProject
+            existing.recurrenceRule = recurrenceRule
+            existing.tags = allTags.filter { selectedTags.contains($0.id) }
             existing.updatedAt = Date()
             itemToSchedule = existing
         } else {
@@ -204,9 +359,11 @@ struct TodoDetailView: View {
                 dueDate: dueDate,
                 priority: priority,
                 reminderFrequency: reminderFrequency,
-                customReminderDays: customReminderDays
+                customReminderDays: customReminderDays,
+                recurrenceRule: recurrenceRule
             )
             item.project = selectedProject
+            item.tags = allTags.filter { selectedTags.contains($0.id) }
             modelContext.insert(item)
             itemToSchedule = item
         }
@@ -220,5 +377,75 @@ struct TodoDetailView: View {
         await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
 
         dismiss()
+    }
+}
+
+// MARK: - New Tag Sheet
+
+struct NewTagSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var name = ""
+    @State private var selectedColorHex = "C4704B"
+
+    var onCreated: ((Tag) -> Void)?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Name") {
+                    TextField("Tag name", text: $name)
+                }
+
+                Section("Color") {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                        ForEach(Tag.availableColors, id: \.hex) { colorOption in
+                            Button {
+                                selectedColorHex = colorOption.hex
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            } label: {
+                                Circle()
+                                    .fill(Color(hex: colorOption.hex))
+                                    .frame(width: 36, height: 36)
+                                    .overlay {
+                                        if selectedColorHex == colorOption.hex {
+                                            Image(systemName: "checkmark")
+                                                .font(.caption.bold())
+                                                .foregroundStyle(.white)
+                                        }
+                                    }
+                                    .scaleEffect(selectedColorHex == colorOption.hex ? 1.12 : 1.0)
+                                    .animation(.snappy(duration: 0.25), value: selectedColorHex)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(colorOption.name)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("New Tag")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        let tag = Tag(name: trimmed, colorHex: selectedColorHex)
+                        modelContext.insert(tag)
+                        try? modelContext.save()
+                        onCreated?(tag)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
