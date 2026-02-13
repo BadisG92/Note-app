@@ -9,6 +9,7 @@ final class Tag {
     var colorHex: String
     var createdAt: Date
 
+    @Relationship(deleteRule: .nullify)
     var todos: [TodoItem]
 
     var color: Color {

@@ -23,8 +23,10 @@ struct NoteEditorView: View {
 
     private var hasMarkdownContent: Bool {
         let c = note.content
-        return c.contains("**") || c.contains("# ") || c.contains("- ") || c.contains("```")
-            || c.contains("*") || c.contains("> ") || c.contains("~~")
+        return c.contains("**") || c.contains("```") || c.contains("~~")
+            || c.range(of: #"^#{1,3}\s"#, options: [.regularExpression, .anchorsMatchLines]) != nil
+            || c.range(of: #"^[-*]\s"#, options: [.regularExpression, .anchorsMatchLines]) != nil
+            || c.range(of: #"^>\s"#, options: [.regularExpression, .anchorsMatchLines]) != nil
     }
 
     private var editorContent: some View {
@@ -116,13 +118,13 @@ struct NoteEditorView: View {
                 // Markdown formatting quick buttons
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        markdownButton("**B**", insert: "****", cursorOffset: 2, label: "Bold")
-                        markdownButton("*I*", insert: "**", cursorOffset: 1, label: "Italic")
-                        markdownButton("~~S~~", insert: "~~~~", cursorOffset: 2, label: "Strikethrough")
-                        markdownButton("`C`", insert: "``", cursorOffset: 1, label: "Code")
-                        markdownButton("H1", insert: "# ", cursorOffset: 2, label: "Heading")
-                        markdownButton("- ", insert: "- ", cursorOffset: 2, label: "Bullet")
-                        markdownButton("> ", insert: "> ", cursorOffset: 2, label: "Quote")
+                        markdownButton("**B**", insert: "****", accessibilityName: "Bold")
+                        markdownButton("*I*", insert: "**", accessibilityName: "Italic")
+                        markdownButton("~~S~~", insert: "~~~~", accessibilityName: "Strikethrough")
+                        markdownButton("`C`", insert: "``", accessibilityName: "Code")
+                        markdownButton("H1", insert: "# ", accessibilityName: "Heading")
+                        markdownButton("- ", insert: "- ", accessibilityName: "Bullet")
+                        markdownButton("> ", insert: "> ", accessibilityName: "Quote")
                     }
                 }
 
@@ -168,12 +170,12 @@ struct NoteEditorView: View {
 
     // MARK: - Markdown Formatting Buttons
 
-    private func markdownButton(_ label: String, insert: String, cursorOffset: Int, label accessibilityLabel: String) -> some View {
+    private func markdownButton(_ title: String, insert: String, accessibilityName: String) -> some View {
         Button {
             note.content += insert
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
-            Text(label)
+            Text(title)
                 .font(.system(.caption, design: .monospaced))
                 .fontWeight(.medium)
                 .padding(.horizontal, 8)
@@ -181,6 +183,6 @@ struct NoteEditorView: View {
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .accessibilityLabel(accessibilityLabel)
+        .accessibilityLabel(accessibilityName)
     }
 }

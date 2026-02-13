@@ -4,10 +4,11 @@ struct MarkdownRendererView: View {
     let content: String
 
     var body: some View {
+        let elements = parseLines()
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(parseLines().enumerated()), id: \.offset) { _, element in
-                    renderElement(element)
+                ForEach(elements.indices, id: \.self) { index in
+                    renderElement(elements[index])
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -25,7 +26,6 @@ struct MarkdownRendererView: View {
         case blockquote(text: String)
         case horizontalRule
         case paragraph(text: String)
-        case empty
     }
 
     private func parseLines() -> [MarkdownElement] {
@@ -169,7 +169,7 @@ struct MarkdownRendererView: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerSM))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM))
 
         case .blockquote(let text):
             HStack(spacing: 0) {
@@ -190,9 +190,6 @@ struct MarkdownRendererView: View {
 
         case .paragraph(let text):
             renderInlineText(text)
-
-        case .empty:
-            EmptyView()
         }
     }
 
@@ -211,41 +208,77 @@ struct MarkdownRendererView: View {
 
         while !remaining.isEmpty {
             // Bold: **text**
-            if remaining.hasPrefix("**"),
-               let end = remaining[remaining.index(remaining.startIndex, offsetBy: 2)...].range(of: "**") {
-                let inner = remaining[remaining.index(remaining.startIndex, offsetBy: 2)..<end.lowerBound]
-                result = result + Text(inner).bold()
-                remaining = remaining[end.upperBound...]
+            if remaining.hasPrefix("**") {
+                let afterOpen = remaining.index(remaining.startIndex, offsetBy: 2)
+                if afterOpen < remaining.endIndex,
+                   let end = remaining[afterOpen...].range(of: "**") {
+                    let inner = remaining[afterOpen..<end.lowerBound]
+                    if !inner.isEmpty {
+                        result = result + Text(inner).bold()
+                        remaining = remaining[end.upperBound...]
+                        continue
+                    }
+                }
+                // No valid closing: treat as literal text
+                result = result + Text("*")
+                remaining = remaining[remaining.index(after: remaining.startIndex)...]
                 continue
             }
 
             // Strikethrough: ~~text~~
-            if remaining.hasPrefix("~~"),
-               let end = remaining[remaining.index(remaining.startIndex, offsetBy: 2)...].range(of: "~~") {
-                let inner = remaining[remaining.index(remaining.startIndex, offsetBy: 2)..<end.lowerBound]
-                result = result + Text(inner).strikethrough()
-                remaining = remaining[end.upperBound...]
+            if remaining.hasPrefix("~~") {
+                let afterOpen = remaining.index(remaining.startIndex, offsetBy: 2)
+                if afterOpen < remaining.endIndex,
+                   let end = remaining[afterOpen...].range(of: "~~") {
+                    let inner = remaining[afterOpen..<end.lowerBound]
+                    if !inner.isEmpty {
+                        result = result + Text(inner).strikethrough()
+                        remaining = remaining[end.upperBound...]
+                        continue
+                    }
+                }
+                // No valid closing: treat as literal
+                result = result + Text("~")
+                remaining = remaining[remaining.index(after: remaining.startIndex)...]
                 continue
             }
 
-            // Italic: *text*
+            // Italic: *text* (must not start with **)
             if remaining.hasPrefix("*"),
-               !remaining.hasPrefix("**"),
-               let end = remaining[remaining.index(after: remaining.startIndex)...].range(of: "*") {
-                let inner = remaining[remaining.index(after: remaining.startIndex)..<end.lowerBound]
-                result = result + Text(inner).italic()
-                remaining = remaining[end.upperBound...]
+               !remaining.hasPrefix("**") {
+                let afterOpen = remaining.index(after: remaining.startIndex)
+                if afterOpen < remaining.endIndex,
+                   let end = remaining[afterOpen...].range(of: "*") {
+                    let inner = remaining[afterOpen..<end.lowerBound]
+                    if !inner.isEmpty {
+                        result = result + Text(inner).italic()
+                        remaining = remaining[end.upperBound...]
+                        continue
+                    }
+                }
+                // No valid closing: treat as literal
+                result = result + Text("*")
+                remaining = remaining[remaining.index(after: remaining.startIndex)...]
                 continue
             }
 
             // Inline code: `text`
-            if remaining.hasPrefix("`"),
-               let end = remaining[remaining.index(after: remaining.startIndex)...].range(of: "`") {
-                let inner = remaining[remaining.index(after: remaining.startIndex)..<end.lowerBound]
-                result = result + Text(inner)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(Theme.mauve)
-                remaining = remaining[end.upperBound...]
+            if remaining.hasPrefix("`") {
+                let afterOpen = remaining.index(after: remaining.startIndex)
+                if afterOpen < remaining.endIndex,
+                   let end = remaining[afterOpen...].range(of: "`") {
+                    let inner = remaining[afterOpen..<end.lowerBound]
+                    if !inner.isEmpty {
+                        result = result + Text(inner)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(Theme.mauve)
+                        remaining = remaining[end.upperBound...]
+                        continue
+                    }
+                }
+                // No valid closing: treat as literal
+                result = result + Text("`")
+                remaining = remaining[remaining.index(after: remaining.startIndex)...]
                 continue
             }
 

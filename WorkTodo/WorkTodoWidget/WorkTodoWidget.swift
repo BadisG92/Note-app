@@ -10,8 +10,14 @@ struct TodoWidgetProvider: TimelineProvider {
     init() {
         let schema = Schema([TodoItem.self, Project.self, Tag.self, Note.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        self.modelContainer = (try? ModelContainer(for: schema, configurations: [config]))
-            ?? (try! ModelContainer(for: schema))
+        do {
+            self.modelContainer = try ModelContainer(for: schema, configurations: [config])
+        } catch {
+            // Fallback: in-memory container so widget doesn't crash
+            self.modelContainer = try! ModelContainer(for: schema, configurations: [
+                ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            ])
+        }
     }
 
     func placeholder(in context: Context) -> TodoWidgetEntry {
@@ -29,16 +35,19 @@ struct TodoWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TodoWidgetEntry) -> Void) {
-        let entry = fetchEntry()
-        completion(entry)
+        Task { @MainActor in
+            let entry = fetchEntry()
+            completion(entry)
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodoWidgetEntry>) -> Void) {
-        let entry = fetchEntry()
-        // Refresh every 30 minutes
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-        completion(timeline)
+        Task { @MainActor in
+            let entry = fetchEntry()
+            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
+            let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+            completion(timeline)
+        }
     }
 
     @MainActor
@@ -114,7 +123,7 @@ struct SmallWidgetView: View {
             HStack {
                 Image(systemName: "checklist")
                     .font(.caption)
-                    .foregroundStyle(Color(hex: "C8923C"))
+                    .foregroundStyle(Color(widgetHex: "C8923C"))
                 Text("WorkTodo")
                     .font(.caption2)
                     .fontWeight(.semibold)
@@ -128,7 +137,7 @@ struct SmallWidgetView: View {
                     VStack(spacing: 4) {
                         Image(systemName: "party.popper")
                             .font(.title2)
-                            .foregroundStyle(Color(hex: "C8923C"))
+                            .foregroundStyle(Color(widgetHex: "C8923C"))
                         Text("All Done!")
                             .font(.caption)
                             .fontWeight(.semibold)
@@ -151,24 +160,24 @@ struct SmallWidgetView: View {
                 if entry.overdueCount > 0 {
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(Color(hex: "BF5B3F"))
+                            .fill(Color(widgetHex: "BF5B3F"))
                             .frame(width: 6, height: 6)
                         Text("\(entry.overdueCount) overdue")
                             .font(.caption2)
                             .fontWeight(.medium)
-                            .foregroundStyle(Color(hex: "BF5B3F"))
+                            .foregroundStyle(Color(widgetHex: "BF5B3F"))
                     }
                 }
 
                 if entry.todayActiveCount > 0 {
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(Color(hex: "C8923C"))
+                            .fill(Color(widgetHex: "C8923C"))
                             .frame(width: 6, height: 6)
                         Text("\(entry.todayActiveCount) due today")
                             .font(.caption2)
                             .fontWeight(.medium)
-                            .foregroundStyle(Color(hex: "C8923C"))
+                            .foregroundStyle(Color(widgetHex: "C8923C"))
                     }
                 }
             }
@@ -187,7 +196,7 @@ struct MediumWidgetView: View {
             HStack {
                 Image(systemName: "checklist")
                     .font(.caption)
-                    .foregroundStyle(Color(hex: "C8923C"))
+                    .foregroundStyle(Color(widgetHex: "C8923C"))
                 Text("Today's Tasks")
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -200,8 +209,8 @@ struct MediumWidgetView: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "BF5B3F").opacity(0.15))
-                        .foregroundStyle(Color(hex: "BF5B3F"))
+                        .background(Color(widgetHex: "BF5B3F").opacity(0.15))
+                        .foregroundStyle(Color(widgetHex: "BF5B3F"))
                         .clipShape(Capsule())
                 }
 
@@ -217,7 +226,7 @@ struct MediumWidgetView: View {
                     VStack(spacing: 4) {
                         Image(systemName: "checkmark.circle")
                             .font(.title3)
-                            .foregroundStyle(Color(hex: "7D9B6B"))
+                            .foregroundStyle(Color(widgetHex: "7D9B6B"))
                         Text("Nothing due today")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -231,8 +240,8 @@ struct MediumWidgetView: View {
                         Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                             .font(.caption)
                             .foregroundStyle(task.isCompleted
-                                ? Color(hex: "7D9B6B")
-                                : task.isOverdue ? Color(hex: "BF5B3F") : .secondary)
+                                ? Color(widgetHex: "7D9B6B")
+                                : task.isOverdue ? Color(widgetHex: "BF5B3F") : .secondary)
 
                         Text(task.title)
                             .font(.caption)
@@ -245,7 +254,7 @@ struct MediumWidgetView: View {
                         if task.isOverdue {
                             Text("overdue")
                                 .font(.system(size: 9))
-                                .foregroundStyle(Color(hex: "BF5B3F"))
+                                .foregroundStyle(Color(widgetHex: "BF5B3F"))
                         }
                     }
                 }
@@ -301,7 +310,7 @@ struct WorkTodoWidget: Widget {
         }
         .configurationDisplayName("Tasks")
         .description("See your tasks at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .accessoryRectangular])
     }
 
     @ViewBuilder
@@ -332,6 +341,19 @@ struct WorkTodoMediumWidget: Widget {
     }
 }
 
+struct WorkTodoAccessoryWidget: Widget {
+    let kind: String = "WorkTodoAccessoryWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: TodoWidgetProvider()) { entry in
+            AccessoryWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Task Count")
+        .description("See active task count on lock screen.")
+        .supportedFamilies([.accessoryRectangular])
+    }
+}
+
 // MARK: - Widget Bundle
 
 @main
@@ -339,13 +361,14 @@ struct WorkTodoWidgetBundle: WidgetBundle {
     var body: some Widget {
         WorkTodoWidget()
         WorkTodoMediumWidget()
+        WorkTodoAccessoryWidget()
     }
 }
 
-// MARK: - Color Extension (Widget-local)
+// MARK: - Color Extension (Widget-local, renamed to avoid conflict with main app)
 
 extension Color {
-    init(hex: String) {
+    init(widgetHex hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
