@@ -118,11 +118,11 @@ struct TodoDetailView: View {
                     }
                 }
             }
-            .onAppear {
+            .task {
                 if !isEditing {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        focusedField = .title
-                    }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    guard !Task.isCancelled else { return }
+                    focusedField = .title
                 }
             }
         }

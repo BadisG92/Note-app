@@ -62,6 +62,8 @@ struct NoteEditorView: View {
                         note.updatedAt = Date()
                     }
                     try? modelContext.save()
+                    originalTitle = note.title
+                    originalContent = note.content
                     dismiss()
                 }
                 .fontWeight(.semibold)
@@ -90,11 +92,11 @@ struct NoteEditorView: View {
                 }
             }
         }
-        .onAppear {
+        .task(id: isNew) {
             if isNew {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isTitleFocused = true
-                }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                guard !Task.isCancelled else { return }
+                isTitleFocused = true
             } else {
                 originalTitle = note.title
                 originalContent = note.content
