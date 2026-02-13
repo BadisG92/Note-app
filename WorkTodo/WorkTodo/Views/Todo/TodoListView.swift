@@ -79,6 +79,7 @@ struct TodoListView: View {
                     filteredEmptyState
                 } else {
                     todoListContent(currentFiltered)
+                }
             }
             .navigationTitle("Tasks")
             .searchable(text: $searchText, prompt: "Search tasks...")
