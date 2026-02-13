@@ -11,9 +11,15 @@ struct TodoDetailView: View {
     @State private var priority: Priority
     @State private var reminderFrequency: ReminderFrequency
     @State private var customReminderDays: Int
+    @FocusState private var focusedField: Field?
 
     private var existingItem: TodoItem?
     private var isEditing: Bool
+
+    private enum Field: Hashable {
+        case title
+        case details
+    }
 
     // Create new
     init() {
@@ -49,9 +55,19 @@ struct TodoDetailView: View {
                 Section {
                     TextField("Task title", text: $title)
                         .font(.headline)
+                        .focused($focusedField, equals: .title)
+                        .submitLabel(.next)
+                        .onSubmit {
+                            focusedField = .details
+                        }
 
                     TextField("Details (optional)", text: $details, axis: .vertical)
                         .lineLimit(3...6)
+                        .focused($focusedField, equals: .details)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            focusedField = nil
+                        }
                 } header: {
                     Text("Task")
                 }
@@ -91,6 +107,19 @@ struct TodoDetailView: View {
                     .fontWeight(.semibold)
                     .disabled(!isValid)
                 }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button {
+                        focusedField = nil
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                    }
+                }
+            }
+            .onAppear {
+                if !isEditing {
+                    focusedField = .title
+                }
             }
         }
     }
@@ -123,10 +152,12 @@ struct TodoDetailView: View {
             itemToSchedule = item
         }
 
-        Task {
-            await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
-        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
 
+        // Schedule synchronously (NotificationManager is @MainActor, we're on MainActor)
+        NotificationManager.shared.scheduleNotification(for: itemToSchedule)
+
+        try? modelContext.save()
         dismiss()
     }
 }

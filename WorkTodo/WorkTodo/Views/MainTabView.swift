@@ -1,7 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct MainTabView: View {
-    @State private var selectedTab = 0
+    @AppStorage("selectedTab") private var selectedTab = 0
+    @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
+
+    private var badgeCount: Int {
+        allTodos.filter { !$0.isCompleted }.count
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -10,6 +16,7 @@ struct MainTabView: View {
                     Label("Tasks", systemImage: "checklist")
                 }
                 .tag(0)
+                .badge(badgeCount)
 
             NoteListView()
                 .tabItem {

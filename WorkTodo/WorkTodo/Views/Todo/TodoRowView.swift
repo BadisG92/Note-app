@@ -10,43 +10,70 @@ struct TodoRowView: View {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                    .symbolEffect(.bounce, value: todo.isCompleted)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(todo.isCompleted ? "Mark incomplete" : "Mark complete")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(todo.title)
                     .font(.body)
                     .fontWeight(.medium)
                     .strikethrough(todo.isCompleted)
-                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
+                    .foregroundStyle(todo.isCompleted ? .tertiary : .primary)
+                    .lineLimit(2)
 
                 HStack(spacing: 8) {
-                    // Due date
-                    Label(todo.dueDateFormatted, systemImage: "calendar")
-                        .font(.caption)
-                        .foregroundStyle(todo.isOverdue ? .red : .secondary)
+                    // Due date -- bold red with background when overdue
+                    if todo.isOverdue {
+                        Label(todo.dueDateFormatted, systemImage: "calendar.badge.exclamationmark")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.red.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    } else {
+                        Label(todo.dueDateFormatted, systemImage: "calendar")
+                            .font(.caption)
+                            .foregroundStyle(todo.isCompleted ? .tertiary : .secondary)
+                    }
 
                     // Reminder indicator
                     if todo.reminderFrequency != .none {
                         Label(todo.reminderFrequency.label, systemImage: "bell.fill")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(todo.isCompleted ? .tertiary : .orange)
                     }
                 }
 
                 if !todo.details.isEmpty {
                     Text(todo.details)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .foregroundStyle(todo.isCompleted ? .tertiary : .secondary)
+                        .lineLimit(2)
                 }
             }
 
             Spacer()
 
             PriorityBadge(priority: todo.priority)
+                .opacity(todo.isCompleted ? 0.45 : 1.0)
         }
         .padding(.vertical, 4)
+        .opacity(todo.isCompleted ? 0.7 : 1.0)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        var parts = [todo.title]
+        parts.append(todo.isCompleted ? "completed" : "active")
+        parts.append("priority \(todo.priority.label)")
+        parts.append("due \(todo.dueDateFormatted)")
+        if todo.isOverdue { parts.append("overdue") }
+        return parts.joined(separator: ", ")
     }
 }

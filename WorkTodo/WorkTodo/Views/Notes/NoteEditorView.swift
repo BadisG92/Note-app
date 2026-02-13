@@ -22,6 +22,10 @@ struct NoteEditorView: View {
                 .font(.title2)
                 .fontWeight(.bold)
                 .focused($isTitleFocused)
+                .submitLabel(.next)
+                .onSubmit {
+                    isContentFocused = true
+                }
                 .padding(.horizontal)
                 .padding(.top, 12)
 
@@ -53,6 +57,7 @@ struct NoteEditorView: View {
                     if note.title.isEmpty && note.content.isEmpty {
                         modelContext.delete(note)
                     }
+                    try? modelContext.save()
                     dismiss()
                 }
                 .fontWeight(.semibold)
@@ -61,11 +66,22 @@ struct NoteEditorView: View {
             ToolbarItem(placement: .secondaryAction) {
                 Button {
                     note.isPinned.toggle()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Label(
                         note.isPinned ? "Unpin" : "Pin",
                         systemImage: note.isPinned ? "pin.slash" : "pin"
                     )
+                }
+            }
+
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button {
+                    isTitleFocused = false
+                    isContentFocused = false
+                } label: {
+                    Image(systemName: "keyboard.chevron.compact.down")
                 }
             }
         }

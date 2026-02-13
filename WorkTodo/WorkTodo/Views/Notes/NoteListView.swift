@@ -7,6 +7,7 @@ struct NoteListView: View {
 
     @State private var searchText = ""
     @State private var newNote: Note?
+    @State private var noteToDelete: Note?
 
     private var filteredNotes: [Note] {
         if searchText.isEmpty {
@@ -31,6 +32,8 @@ struct NoteListView: View {
             Group {
                 if allNotes.isEmpty {
                     emptyState
+                } else if filteredNotes.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 } else {
                     noteList
                 }
@@ -49,6 +52,30 @@ struct NoteListView: View {
                 NoteEditorView(note: note, isNew: true)
             } onDismiss: {
                 cleanupEmptyNewNote()
+            }
+            .confirmationDialog(
+                "Delete Note",
+                isPresented: Binding(
+                    get: { noteToDelete != nil },
+                    set: { if !$0 { noteToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let note = noteToDelete {
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                        withAnimation { modelContext.delete(note) }
+                        try? modelContext.save()
+                    }
+                    noteToDelete = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    noteToDelete = nil
+                }
+            } message: {
+                if let note = noteToDelete {
+                    Text("Are you sure you want to delete \"\(note.title.isEmpty ? "Untitled Note" : note.title)\"? This cannot be undone.")
+                }
             }
         }
     }
@@ -78,9 +105,26 @@ struct NoteListView: View {
                         } label: {
                             NoteRowView(note: note)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                noteToDelete = note
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                withAnimation { note.isPinned.toggle() }
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            } label: {
+                                Label(note.isPinned ? "Unpin" : "Pin",
+                                      systemImage: note.isPinned ? "pin.slash" : "pin")
+                            }
+                            .tint(.orange)
+                        }
                     }
                     .onDelete { offsets in
-                        deleteNotes(from: pinnedNotes, at: offsets)
+                        requestDeleteNotes(from: pinnedNotes, at: offsets)
                     }
                 } header: {
                     Label("Pinned", systemImage: "pin.fill")
@@ -96,9 +140,26 @@ struct NoteListView: View {
                     } label: {
                         NoteRowView(note: note)
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            noteToDelete = note
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button {
+                            withAnimation { note.isPinned.toggle() }
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        } label: {
+                            Label(note.isPinned ? "Unpin" : "Pin",
+                                  systemImage: note.isPinned ? "pin.slash" : "pin")
+                        }
+                        .tint(.orange)
+                    }
                 }
                 .onDelete { offsets in
-                    deleteNotes(from: unpinnedNotes, at: offsets)
+                    requestDeleteNotes(from: unpinnedNotes, at: offsets)
                 }
             } header: {
                 if !pinnedNotes.isEmpty {
@@ -109,6 +170,9 @@ struct NoteListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+        }
     }
 
     // MARK: - Actions
@@ -120,15 +184,15 @@ struct NoteListView: View {
     }
 
     private func cleanupEmptyNewNote() {
-        if let note = newNote, note.title.isEmpty && note.content.isEmpty {
+        if let note = newNote, !note.isDeleted,
+           note.title.isEmpty && note.content.isEmpty {
             modelContext.delete(note)
         }
         newNote = nil
     }
 
-    private func deleteNotes(from source: [Note], at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(source[index])
-        }
+    private func requestDeleteNotes(from source: [Note], at offsets: IndexSet) {
+        guard let first = offsets.first else { return }
+        noteToDelete = source[first]
     }
 }

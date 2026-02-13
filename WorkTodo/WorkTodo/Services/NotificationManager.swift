@@ -1,10 +1,11 @@
 import Foundation
 import UserNotifications
 
+@MainActor
 final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
 
-    @MainActor @Published var isAuthorized = false
+    @Published var isAuthorized = false
 
     private init() {}
 
@@ -12,7 +13,7 @@ final class NotificationManager: ObservableObject {
         do {
             let granted = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .badge, .sound])
-            await MainActor.run { isAuthorized = granted }
+            isAuthorized = granted
         } catch {
             print("Notification authorization error: \(error)")
         }
@@ -20,9 +21,7 @@ final class NotificationManager: ObservableObject {
 
     func checkAuthorizationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        await MainActor.run {
-            isAuthorized = settings.authorizationStatus == .authorized
-        }
+        isAuthorized = settings.authorizationStatus == .authorized
     }
 
     // MARK: - Schedule Notifications for a TodoItem
@@ -55,7 +54,6 @@ final class NotificationManager: ObservableObject {
         }
     }
 
-    // Use a single repeating trigger for daily (1 slot instead of 11)
     private func scheduleDailyRepeating(for item: TodoItem) {
         let content = makeContent(for: item)
         let dateComponents = Calendar.current.dateComponents(
@@ -79,7 +77,6 @@ final class NotificationManager: ObservableObject {
         }
     }
 
-    // Use a single repeating trigger for weekly (1 slot instead of 11)
     private func scheduleWeeklyRepeating(for item: TodoItem) {
         let content = makeContent(for: item)
         let dateComponents = Calendar.current.dateComponents(
@@ -103,14 +100,12 @@ final class NotificationManager: ObservableObject {
         }
     }
 
-    // For biweekly, monthly, custom: schedule finite occurrences
     private func scheduleFiniteRecurring(for item: TodoItem, component: Calendar.Component, value: Int) {
         let content = makeContent(for: item)
         let now = Date()
         var scheduledCount = 0
         let maxSlots = 10
 
-        // Schedule the initial notification if in the future
         if item.dueDate > now {
             let dateComponents = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute],
@@ -134,7 +129,6 @@ final class NotificationManager: ObservableObject {
             scheduledCount += 1
         }
 
-        // Schedule recurring reminders (only future dates, respecting 64-slot budget)
         for i in 1...maxSlots {
             guard scheduledCount < maxSlots else { break }
 
@@ -144,10 +138,8 @@ final class NotificationManager: ObservableObject {
                 to: item.dueDate
             ) else { continue }
 
-            // Skip past dates
             guard nextDate > now else { continue }
 
-            // Don't schedule more than 60 days out
             if nextDate.timeIntervalSinceNow > 60 * 24 * 3600 { break }
 
             let recurringComponents = Calendar.current.dateComponents(
@@ -190,7 +182,7 @@ final class NotificationManager: ObservableObject {
         removeNotifications(forId: item.id)
     }
 
-    func removeNotifications(forId id: UUID) {
+    nonisolated func removeNotifications(forId id: UUID) {
         var identifiers = [
             "\(id.uuidString)-initial",
             "\(id.uuidString)-repeating"
@@ -207,7 +199,7 @@ final class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 
-    static func clearBadge() {
+    nonisolated static func clearBadge() {
         UNUserNotificationCenter.current().setBadgeCount(0) { error in
             if let error { print("Failed to clear badge: \(error)") }
         }

@@ -9,6 +9,7 @@ struct TodoListView: View {
     @State private var searchText = ""
     @State private var filterMode: FilterMode = .active
     @State private var sortMode: SortMode = .dueDate
+    @State private var todoToDelete: TodoItem?
 
     enum TodoSheetState: Identifiable {
         case add
@@ -32,6 +33,12 @@ struct TodoListView: View {
         case dueDate = "Due Date"
         case priority = "Priority"
         case created = "Created"
+    }
+
+    // MARK: - Computed Properties
+
+    var activeTodoCount: Int {
+        allTodos.filter { !$0.isCompleted }.count
     }
 
     private var filteredTodos: [TodoItem] {
@@ -70,6 +77,8 @@ struct TodoListView: View {
             Group {
                 if allTodos.isEmpty {
                     emptyState
+                } else if filteredTodos.isEmpty {
+                    filteredEmptyState
                 } else {
                     todoList
                 }
@@ -83,25 +92,8 @@ struct TodoListView: View {
                             .font(.title3)
                     }
                 }
-                ToolbarItem(placement: .secondaryAction) {
-                    Menu {
-                        Section("Filter") {
-                            Picker("Filter", selection: $filterMode) {
-                                ForEach(FilterMode.allCases, id: \.self) { mode in
-                                    Text(mode.rawValue).tag(mode)
-                                }
-                            }
-                        }
-                        Section("Sort by") {
-                            Picker("Sort", selection: $sortMode) {
-                                ForEach(SortMode.allCases, id: \.self) { mode in
-                                    Text(mode.rawValue).tag(mode)
-                                }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
+                ToolbarItem(placement: .topBarLeading) {
+                    filterSortMenu
                 }
             }
             .sheet(item: $activeSheet) { state in
@@ -113,6 +105,75 @@ struct TodoListView: View {
                         .id(todo.id)
                 }
             }
+            .confirmationDialog(
+                "Delete Task",
+                isPresented: Binding(
+                    get: { todoToDelete != nil },
+                    set: { if !$0 { todoToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let todo = todoToDelete {
+                        performDelete(todo)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    todoToDelete = nil
+                }
+            } message: {
+                if let todo = todoToDelete {
+                    Text("Are you sure you want to delete \"\(todo.title)\"? This cannot be undone.")
+                }
+            }
+        }
+    }
+
+    // MARK: - Filter / Sort Menu with active-state indicators
+
+    private var filterSortMenu: some View {
+        Menu {
+            Section("Filter") {
+                Picker("Filter", selection: $filterMode) {
+                    ForEach(FilterMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+            }
+            Section("Sort by") {
+                Picker("Sort", selection: $sortMode) {
+                    ForEach(SortMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: filterMode == .active && sortMode == .dueDate
+                      ? "line.3.horizontal.decrease.circle"
+                      : "line.3.horizontal.decrease.circle.fill")
+                    .font(.body)
+
+                if filterMode != .active || sortMode != .dueDate {
+                    Text(filterChipLabel)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.blue.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+            }
+        }
+    }
+
+    private var filterChipLabel: String {
+        if filterMode != .active && sortMode != .dueDate {
+            return "\(filterMode.rawValue) / \(sortMode.rawValue)"
+        } else if filterMode != .active {
+            return filterMode.rawValue
+        } else {
+            return sortMode.rawValue
         }
     }
 
@@ -131,6 +192,47 @@ struct TodoListView: View {
         }
     }
 
+    private var filteredEmptyState: some View {
+        Group {
+            if !searchText.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            } else {
+                ContentUnavailableView {
+                    Label(filteredEmptyTitle, systemImage: filteredEmptyIcon)
+                } description: {
+                    Text(filteredEmptyDescription)
+                }
+            }
+        }
+    }
+
+    private var filteredEmptyTitle: String {
+        switch filterMode {
+        case .completed: return "No Completed Tasks"
+        case .active: return "All Done!"
+        case .all: return "No Tasks"
+        }
+    }
+
+    private var filteredEmptyIcon: String {
+        switch filterMode {
+        case .completed: return "checkmark.circle"
+        case .active: return "party.popper"
+        case .all: return "checklist"
+        }
+    }
+
+    private var filteredEmptyDescription: String {
+        switch filterMode {
+        case .completed:
+            return "Tasks you complete will appear here."
+        case .active:
+            return "You have no active tasks. Nice work!"
+        case .all:
+            return "No tasks match the current criteria."
+        }
+    }
+
     private var todoList: some View {
         let filtered = filteredTodos
         let overdue = filtered.filter { $0.isOverdue }
@@ -144,7 +246,7 @@ struct TodoListView: View {
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        deleteTodos(from: overdue, at: offsets)
+                        requestDeleteTodos(from: overdue, at: offsets)
                     }
                 } header: {
                     Label("Overdue", systemImage: "exclamationmark.triangle.fill")
@@ -160,7 +262,7 @@ struct TodoListView: View {
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        deleteTodos(from: upcoming, at: offsets)
+                        requestDeleteTodos(from: upcoming, at: offsets)
                     }
                 } header: {
                     Label("Upcoming", systemImage: "clock")
@@ -175,7 +277,7 @@ struct TodoListView: View {
                         todoRow(todo)
                     }
                     .onDelete { offsets in
-                        deleteTodos(from: completed, at: offsets)
+                        requestDeleteTodos(from: completed, at: offsets)
                     }
                 } header: {
                     Label("Completed", systemImage: "checkmark.circle")
@@ -185,6 +287,9 @@ struct TodoListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+        }
     }
 
     private func todoRow(_ todo: TodoItem) -> some View {
@@ -192,6 +297,8 @@ struct TodoListView: View {
             withAnimation {
                 todo.toggleCompleted()
             }
+            UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
+                .impactOccurred()
             handleNotificationsAfterToggle(todo)
         }
         .contentShape(Rectangle())
@@ -200,16 +307,18 @@ struct TodoListView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
-                deleteTodo(todo)
+                todoToDelete = todo
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {
                 withAnimation {
                     todo.toggleCompleted()
                 }
+                UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
+                    .impactOccurred()
                 handleNotificationsAfterToggle(todo)
             } label: {
                 Label(
@@ -225,21 +334,22 @@ struct TodoListView: View {
 
     private func handleNotificationsAfterToggle(_ todo: TodoItem) {
         if todo.isCompleted {
-            Task { await NotificationManager.shared.removeNotifications(for: todo) }
+            NotificationManager.shared.removeNotifications(for: todo)
         } else {
-            Task { await NotificationManager.shared.scheduleNotification(for: todo) }
+            NotificationManager.shared.scheduleNotification(for: todo)
         }
     }
 
-    private func deleteTodo(_ todo: TodoItem) {
+    private func performDelete(_ todo: TodoItem) {
         let todoId = todo.id
-        Task { await NotificationManager.shared.removeNotifications(forId: todoId) }
+        NotificationManager.shared.removeNotifications(forId: todoId)
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation { modelContext.delete(todo) }
+        try? modelContext.save()
     }
 
-    private func deleteTodos(from source: [TodoItem], at offsets: IndexSet) {
-        for index in offsets {
-            deleteTodo(source[index])
-        }
+    private func requestDeleteTodos(from source: [TodoItem], at offsets: IndexSet) {
+        guard let first = offsets.first else { return }
+        todoToDelete = source[first]
     }
 }

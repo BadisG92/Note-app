@@ -10,6 +10,7 @@ struct NoteRowView: View {
                     Image(systemName: "pin.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
+                        .accessibilityLabel("Pinned")
                 }
 
                 Text(note.title.isEmpty ? "Untitled Note" : note.title)

@@ -3,7 +3,6 @@ import SwiftData
 
 @main
 struct WorkTodoApp: App {
-    @StateObject private var notificationManager = NotificationManager.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
@@ -19,7 +18,23 @@ struct WorkTodoApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            // Attempt recovery: delete corrupt store and retry
+            print("ModelContainer creation failed: \(error). Attempting recovery...")
+            let url = modelConfiguration.url
+            let relatedFiles = [
+                url,
+                url.appendingPathExtension("wal"),
+                url.appendingPathExtension("shm")
+            ]
+            for file in relatedFiles {
+                try? FileManager.default.removeItem(at: file)
+            }
+
+            do {
+                return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            } catch {
+                fatalError("Could not create ModelContainer after recovery: \(error)")
+            }
         }
     }()
 
@@ -27,11 +42,16 @@ struct WorkTodoApp: App {
         WindowGroup {
             MainTabView()
                 .task {
-                    await notificationManager.requestAuthorization()
+                    await NotificationManager.shared.requestAuthorization()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .active {
+                    switch newPhase {
+                    case .active:
                         NotificationManager.clearBadge()
+                    case .background:
+                        try? sharedModelContainer.mainContext.save()
+                    default:
+                        break
                     }
                 }
         }
