@@ -14,6 +14,7 @@ struct TodoListView: View {
     @State private var todoToDelete: TodoItem?
     @State private var showDeleteConfirmation = false
     @State private var quickAddText = ""
+    @State private var showCalendar = false
     @FocusState private var isQuickAddFocused: Bool
 
     enum TodoSheetState: Identifiable {
@@ -85,6 +86,27 @@ struct TodoListView: View {
                 if allTodos.isEmpty {
                     emptyState
                         .transition(.opacity)
+                } else if showCalendar {
+                    CalendarView(
+                        todos: currentFiltered,
+                        onToggle: { todo in
+                            withAnimation(.snappy(duration: 0.35)) {
+                                todo.toggleCompleted()
+                            }
+                            UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
+                                .impactOccurred()
+                            handleNotificationsAfterToggle(todo)
+                            try? modelContext.save()
+                        },
+                        onEdit: { todo in
+                            activeSheet = .edit(todo)
+                        },
+                        onDelete: { todo in
+                            todoToDelete = todo
+                            showDeleteConfirmation = true
+                        }
+                    )
+                    .transition(.opacity)
                 } else if currentFiltered.isEmpty {
                     filteredEmptyState
                         .transition(.opacity)
@@ -95,6 +117,7 @@ struct TodoListView: View {
             }
             .animation(.easeOut(duration: 0.25), value: allTodos.isEmpty)
             .animation(.easeOut(duration: 0.25), value: currentFiltered.isEmpty)
+            .animation(.easeOut(duration: 0.25), value: showCalendar)
             .animation(.default, value: filterMode)
             .animation(.default, value: sortMode)
             .animation(.default, value: selectedProjectFilter?.id)
@@ -102,12 +125,25 @@ struct TodoListView: View {
             .searchable(text: $searchText, prompt: "Search tasks...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: { guard activeSheet == nil else { return }; activeSheet = .add }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
+                    HStack(spacing: 12) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showCalendar.toggle()
+                            }
+                        } label: {
+                            Image(systemName: showCalendar ? "list.bullet" : "calendar")
+                                .font(.body)
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .accessibilityLabel(showCalendar ? "Switch to list view" : "Switch to calendar view")
+
+                        Button(action: { guard activeSheet == nil else { return }; activeSheet = .add }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                        }
+                        .accessibilityLabel("New task")
+                        .accessibilityHint("Opens form to create a new task")
                     }
-                    .accessibilityLabel("New task")
-                    .accessibilityHint("Opens form to create a new task")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     filterSortMenu
