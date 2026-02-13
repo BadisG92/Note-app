@@ -189,11 +189,13 @@ struct NoteListView: View {
     }
 
     private func cleanupEmptyNewNote() {
-        if let note = newNote, note.modelContext != nil,
+        guard let note = newNote else { return }
+        newNote = nil
+        if note.modelContext != nil,
            note.title.isEmpty && note.content.isEmpty {
             modelContext.delete(note)
+            try? modelContext.save()
         }
-        newNote = nil
     }
 
     private func requestDeleteNotes(from source: [Note], at offsets: IndexSet) {

@@ -153,7 +153,7 @@ final class NotificationManager: ObservableObject {
 
             guard nextDate > now else { continue }
 
-            let sixtyDays = Calendar.current.date(byAdding: .day, value: 60, to: now)!
+            guard let sixtyDays = Calendar.current.date(byAdding: .day, value: 60, to: now) else { break }
             if nextDate > sixtyDays { break }
 
             var recurringComponents = Calendar.current.dateComponents(
@@ -167,7 +167,7 @@ final class NotificationManager: ObservableObject {
                 repeats: false
             )
 
-            let slotIndex = scheduledCount + 1
+            let slotIndex = scheduledCount
             let recurringRequest = UNNotificationRequest(
                 identifier: "\(item.id.uuidString)-recurring-\(slotIndex)",
                 content: content,
@@ -205,7 +205,7 @@ final class NotificationManager: ObservableObject {
             "\(id.uuidString)-initial",
             "\(id.uuidString)-repeating"
         ]
-        for i in 1...10 {
+        for i in 0...10 {
             identifiers.append("\(id.uuidString)-recurring-\(i)")
         }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)

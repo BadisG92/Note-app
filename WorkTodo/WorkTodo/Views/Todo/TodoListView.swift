@@ -13,13 +13,13 @@ struct TodoListView: View {
     @State private var showDeleteConfirmation = false
 
     enum TodoSheetState: Identifiable {
-        case add
-        case edit(TodoItem)
+        case add(UUID = UUID())
+        case edit(TodoItem, UUID = UUID())
 
         var id: String {
             switch self {
-            case .add: return "add"
-            case .edit(let todo): return todo.id.uuidString
+            case .add(let token): return "add-\(token)"
+            case .edit(_, let token): return "edit-\(token)"
             }
         }
     }
@@ -97,9 +97,8 @@ struct TodoListView: View {
                 switch state {
                 case .add:
                     TodoDetailView()
-                case .edit(let todo):
+                case .edit(let todo, _):
                     TodoDetailView(todo: todo)
-                        .id(todo.id)
                 }
             }
             .confirmationDialog(
@@ -288,18 +287,16 @@ struct TodoListView: View {
     }
 
     private func todoRow(_ todo: TodoItem) -> some View {
-        TodoRowView(todo: todo) {
+        TodoRowView(todo: todo, onToggle: {
             withAnimation {
                 todo.toggleCompleted()
             }
             UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
                 .impactOccurred()
             handleNotificationsAfterToggle(todo)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
+        }, onEdit: {
             activeSheet = .edit(todo)
-        }
+        })
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 todoToDelete = todo

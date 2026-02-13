@@ -103,7 +103,7 @@ struct TodoDetailView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "Save" : "Add") {
-                        save()
+                        Task { await save() }
                     }
                     .fontWeight(.semibold)
                     .disabled(!isValid)
@@ -127,7 +127,7 @@ struct TodoDetailView: View {
         }
     }
 
-    private func save() {
+    private func save() async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return }
 
@@ -160,10 +160,8 @@ struct TodoDetailView: View {
         // Save model context before dismissing
         try? modelContext.save()
 
-        // Schedule notification asynchronously (completes after dismiss)
-        Task {
-            await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
-        }
+        // Schedule notification before dismiss so the model object is still valid
+        await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
 
         dismiss()
     }

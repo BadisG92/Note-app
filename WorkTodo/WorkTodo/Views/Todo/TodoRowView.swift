@@ -3,6 +3,7 @@ import SwiftUI
 struct TodoRowView: View {
     @Bindable var todo: TodoItem
     let onToggle: () -> Void
+    var onEdit: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -54,6 +55,10 @@ struct TodoRowView: View {
                         .foregroundStyle(todo.isCompleted ? .tertiary : .secondary)
                         .lineLimit(2)
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onEdit?()
             }
 
             Spacer()

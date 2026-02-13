@@ -46,6 +46,7 @@ struct NoteEditorView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         modelContext.delete(note)
+                        try? modelContext.save()
                         dismiss()
                     }
                 }
