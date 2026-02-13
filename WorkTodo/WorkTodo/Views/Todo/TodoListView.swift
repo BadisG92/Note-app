@@ -70,21 +70,21 @@ struct TodoListView: View {
     }
 
     var body: some View {
+        let currentFiltered = filteredTodos
         NavigationStack {
             Group {
                 if allTodos.isEmpty {
                     emptyState
-                } else if filteredTodos.isEmpty {
+                } else if currentFiltered.isEmpty {
                     filteredEmptyState
                 } else {
-                    todoList
-                }
+                    todoListContent(currentFiltered)
             }
             .navigationTitle("Tasks")
             .searchable(text: $searchText, prompt: "Search tasks...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: { activeSheet = .add }) {
+                    Button(action: { guard activeSheet == nil else { return }; activeSheet = .add }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
                     }
@@ -227,8 +227,7 @@ struct TodoListView: View {
         }
     }
 
-    private var todoList: some View {
-        let filtered = filteredTodos
+    private func todoListContent(_ filtered: [TodoItem]) -> some View {
         let overdue = filtered.filter { $0.isOverdue }
         let upcoming = filtered.filter { !$0.isOverdue && !$0.isCompleted }
         let completed = filtered.filter { $0.isCompleted }
@@ -294,6 +293,7 @@ struct TodoListView: View {
             UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
                 .impactOccurred()
             handleNotificationsAfterToggle(todo)
+            try? modelContext.save()
         }, onEdit: {
             activeSheet = .edit(todo)
         })
@@ -313,6 +313,7 @@ struct TodoListView: View {
                 UIImpactFeedbackGenerator(style: todo.isCompleted ? .heavy : .light)
                     .impactOccurred()
                 handleNotificationsAfterToggle(todo)
+                try? modelContext.save()
             } label: {
                 Label(
                     todo.isCompleted ? "Undo" : "Done",

@@ -121,6 +121,7 @@ struct NoteListView: View {
                             Button {
                                 withAnimation { note.isPinned.toggle() }
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                try? modelContext.save()
                             } label: {
                                 Label(note.isPinned ? "Unpin" : "Pin",
                                       systemImage: note.isPinned ? "pin.slash" : "pin")
@@ -157,6 +158,7 @@ struct NoteListView: View {
                         Button {
                             withAnimation { note.isPinned.toggle() }
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            try? modelContext.save()
                         } label: {
                             Label(note.isPinned ? "Unpin" : "Pin",
                                   systemImage: note.isPinned ? "pin.slash" : "pin")
@@ -184,6 +186,7 @@ struct NoteListView: View {
     // MARK: - Actions
 
     private func createNote() {
+        guard newNote == nil else { return }
         let note = Note()
         modelContext.insert(note)
         pendingCleanupNote = note

@@ -56,10 +56,6 @@ struct TodoRowView: View {
                         .lineLimit(2)
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onEdit?()
-            }
 
             Spacer()
 
@@ -68,6 +64,10 @@ struct TodoRowView: View {
         }
         .padding(.vertical, 4)
         .opacity(todo.isCompleted ? 0.7 : 1.0)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit?()
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
     }

@@ -11,6 +11,7 @@ struct TodoDetailView: View {
     @State private var priority: Priority
     @State private var reminderFrequency: ReminderFrequency
     @State private var customReminderDays: Int
+    @State private var isSaving = false
     @FocusState private var focusedField: Field?
 
     private var existingItem: TodoItem?
@@ -106,7 +107,7 @@ struct TodoDetailView: View {
                         Task { await save() }
                     }
                     .fontWeight(.semibold)
-                    .disabled(!isValid)
+                    .disabled(!isValid || isSaving)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -128,8 +129,11 @@ struct TodoDetailView: View {
     }
 
     private func save() async {
+        guard !isSaving else { return }
+        isSaving = true
+
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty else { return }
+        guard !trimmedTitle.isEmpty else { isSaving = false; return }
 
         let itemToSchedule: TodoItem
 

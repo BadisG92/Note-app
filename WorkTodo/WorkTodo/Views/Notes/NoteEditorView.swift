@@ -49,6 +49,8 @@ struct NoteEditorView: View {
             if isNew {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        note.title = ""
+                        note.content = ""
                         dismiss()
                     }
                 }
@@ -56,7 +58,9 @@ struct NoteEditorView: View {
 
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
-                    note.updatedAt = Date()
+                    if note.title != originalTitle || note.content != originalContent {
+                        note.updatedAt = Date()
+                    }
                     try? modelContext.save()
                     dismiss()
                 }
@@ -67,6 +71,7 @@ struct NoteEditorView: View {
                 Button {
                     note.isPinned.toggle()
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    try? modelContext.save()
                 } label: {
                     Label(
                         note.isPinned ? "Unpin" : "Pin",
@@ -90,6 +95,9 @@ struct NoteEditorView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isTitleFocused = true
                 }
+            } else {
+                originalTitle = note.title
+                originalContent = note.content
             }
         }
         .onDisappear {
