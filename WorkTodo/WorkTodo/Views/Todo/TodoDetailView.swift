@@ -11,8 +11,11 @@ struct TodoDetailView: View {
     @State private var priority: Priority
     @State private var reminderFrequency: ReminderFrequency
     @State private var customReminderDays: Int
+    @State private var selectedProject: Project?
     @State private var isSaving = false
     @FocusState private var focusedField: Field?
+
+    @Query(sort: \Project.name) private var projects: [Project]
 
     private var existingItem: TodoItem?
     private var isEditing: Bool
@@ -23,7 +26,7 @@ struct TodoDetailView: View {
     }
 
     // Create new
-    init() {
+    init(project: Project? = nil) {
         self.existingItem = nil
         self.isEditing = false
         _title = State(initialValue: "")
@@ -32,6 +35,7 @@ struct TodoDetailView: View {
         _priority = State(initialValue: .medium)
         _reminderFrequency = State(initialValue: .none)
         _customReminderDays = State(initialValue: 1)
+        _selectedProject = State(initialValue: project)
     }
 
     // Edit existing
@@ -44,6 +48,7 @@ struct TodoDetailView: View {
         _priority = State(initialValue: todo.priority)
         _reminderFrequency = State(initialValue: todo.reminderFrequency)
         _customReminderDays = State(initialValue: todo.customReminderDays)
+        _selectedProject = State(initialValue: todo.project)
     }
 
     private var isValid: Bool {
@@ -57,6 +62,7 @@ struct TodoDetailView: View {
                 || dueDate != existing.dueDate
                 || priority != existing.priority
                 || reminderFrequency != existing.reminderFrequency
+                || selectedProject?.id != existing.project?.id
         }
         return !title.isEmpty || !details.isEmpty
     }
@@ -82,6 +88,20 @@ struct TodoDetailView: View {
                         }
                 } header: {
                     Text("Task")
+                }
+
+                if !projects.isEmpty {
+                    Section("Project") {
+                        Picker("Project", selection: $selectedProject) {
+                            Text("None")
+                                .tag(nil as Project?)
+                            ForEach(projects) { project in
+                                Label(project.name, systemImage: project.iconName)
+                                    .foregroundStyle(project.color)
+                                    .tag(project as Project?)
+                            }
+                        }
+                    }
                 }
 
                 Section("Due Date") {
@@ -156,6 +176,7 @@ struct TodoDetailView: View {
             existing.priority = priority
             existing.reminderFrequency = reminderFrequency
             existing.customReminderDays = customReminderDays
+            existing.project = selectedProject
             existing.updatedAt = Date()
             itemToSchedule = existing
         } else {
@@ -167,6 +188,7 @@ struct TodoDetailView: View {
                 reminderFrequency: reminderFrequency,
                 customReminderDays: customReminderDays
             )
+            item.project = selectedProject
             modelContext.insert(item)
             itemToSchedule = item
         }

@@ -8,7 +8,8 @@ struct WorkTodoApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TodoItem.self,
-            Note.self
+            Note.self,
+            Project.self
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,

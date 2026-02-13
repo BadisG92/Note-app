@@ -18,11 +18,17 @@ struct MainTabView: View {
                 .tag(0)
                 .badge(badgeCount)
 
+            ProjectListView()
+                .tabItem {
+                    Label("Projects", systemImage: "folder.fill")
+                }
+                .tag(1)
+
             NoteListView()
                 .tabItem {
                     Label("Notes", systemImage: "note.text")
                 }
-                .tag(1)
+                .tag(2)
         }
         .tint(.accentColor)
     }

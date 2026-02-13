@@ -47,6 +47,13 @@ struct TodoRowView: View {
                             .font(.caption)
                             .foregroundStyle(todo.isCompleted ? .tertiary : .orange)
                     }
+
+                    // Project indicator
+                    if let project = todo.project {
+                        Label(project.name, systemImage: project.iconName)
+                            .font(.caption)
+                            .foregroundStyle(todo.isCompleted ? .tertiary : project.color)
+                    }
                 }
 
                 if !todo.details.isEmpty {
@@ -77,6 +84,7 @@ struct TodoRowView: View {
         parts.append("priority \(todo.priority.label)")
         parts.append("due \(todo.dueDateFormatted)")
         if todo.isOverdue { parts.append("overdue") }
+        if let project = todo.project { parts.append("project \(project.name)") }
         return parts.joined(separator: ", ")
     }
 }

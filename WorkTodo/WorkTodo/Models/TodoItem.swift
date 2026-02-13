@@ -15,6 +15,8 @@ final class TodoItem {
     var createdAt: Date
     var updatedAt: Date
 
+    var project: Project?
+
     var priority: Priority {
         get { Priority(rawValue: priorityRaw) ?? .medium }
         set { priorityRaw = newValue.rawValue }

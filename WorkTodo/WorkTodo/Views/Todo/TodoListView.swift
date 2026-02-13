@@ -4,11 +4,13 @@ import SwiftData
 struct TodoListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
+    @Query(sort: \Project.name) private var projects: [Project]
 
     @State private var activeSheet: TodoSheetState?
     @State private var searchText = ""
     @State private var filterMode: FilterMode = .active
     @State private var sortMode: SortMode = .dueDate
+    @State private var selectedProjectFilter: Project?
     @State private var todoToDelete: TodoItem?
     @State private var showDeleteConfirmation = false
 
@@ -40,6 +42,11 @@ struct TodoListView: View {
 
     private var filteredTodos: [TodoItem] {
         var result = allTodos
+
+        // Project filter
+        if let projectFilter = selectedProjectFilter {
+            result = result.filter { $0.project?.id == projectFilter.id }
+        }
 
         switch filterMode {
         case .active:
@@ -128,8 +135,38 @@ struct TodoListView: View {
 
     // MARK: - Filter / Sort Menu with active-state indicators
 
+    private var hasNonDefaultFilters: Bool {
+        filterMode != .active || sortMode != .dueDate || selectedProjectFilter != nil
+    }
+
     private var filterSortMenu: some View {
         Menu {
+            if !projects.isEmpty {
+                Section("Project") {
+                    Button {
+                        selectedProjectFilter = nil
+                    } label: {
+                        HStack {
+                            Text("All Projects")
+                            if selectedProjectFilter == nil {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    ForEach(projects) { project in
+                        Button {
+                            selectedProjectFilter = project
+                        } label: {
+                            HStack {
+                                Label(project.name, systemImage: project.iconName)
+                                if selectedProjectFilter?.id == project.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Section("Filter") {
                 Picker("Filter", selection: $filterMode) {
                     ForEach(FilterMode.allCases, id: \.self) { mode in
@@ -146,12 +183,12 @@ struct TodoListView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: filterMode == .active && sortMode == .dueDate
-                      ? "line.3.horizontal.decrease.circle"
-                      : "line.3.horizontal.decrease.circle.fill")
+                Image(systemName: hasNonDefaultFilters
+                      ? "line.3.horizontal.decrease.circle.fill"
+                      : "line.3.horizontal.decrease.circle")
                     .font(.body)
 
-                if filterMode != .active || sortMode != .dueDate {
+                if hasNonDefaultFilters {
                     Text(filterChipLabel)
                         .font(.caption)
                         .fontWeight(.medium)
@@ -165,13 +202,17 @@ struct TodoListView: View {
     }
 
     private var filterChipLabel: String {
-        if filterMode != .active && sortMode != .dueDate {
-            return "\(filterMode.rawValue) / \(sortMode.rawValue)"
-        } else if filterMode != .active {
-            return filterMode.rawValue
-        } else {
-            return sortMode.rawValue
+        var parts: [String] = []
+        if let project = selectedProjectFilter {
+            parts.append(project.name)
         }
+        if filterMode != .active {
+            parts.append(filterMode.rawValue)
+        }
+        if sortMode != .dueDate {
+            parts.append(sortMode.rawValue)
+        }
+        return parts.joined(separator: " / ")
     }
 
     // MARK: - Subviews
