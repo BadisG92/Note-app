@@ -45,8 +45,6 @@ struct NoteEditorView: View {
             if isNew {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        modelContext.delete(note)
-                        try? modelContext.save()
                         dismiss()
                     }
                 }
@@ -55,9 +53,6 @@ struct NoteEditorView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
                     note.updatedAt = Date()
-                    if note.title.isEmpty && note.content.isEmpty {
-                        modelContext.delete(note)
-                    }
                     try? modelContext.save()
                     dismiss()
                 }
@@ -91,6 +86,12 @@ struct NoteEditorView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isTitleFocused = true
                 }
+            }
+        }
+        .onDisappear {
+            if !isNew {
+                note.updatedAt = Date()
+                try? modelContext.save()
             }
         }
     }
