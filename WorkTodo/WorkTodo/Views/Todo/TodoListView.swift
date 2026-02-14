@@ -379,8 +379,12 @@ struct TodoListView: View {
     }
 
     private var filteredEmptyDescription: String {
-        let projectContext = selectedProjectFilter != nil
-            ? " in \(selectedProjectFilter!.name)" : ""
+        let projectContext: String
+        if let project = selectedProjectFilter {
+            projectContext = " in \(project.name)"
+        } else {
+            projectContext = ""
+        }
         switch filterMode {
         case .completed:
             return "No completed tasks\(projectContext) yet."
@@ -419,7 +423,7 @@ struct TodoListView: View {
         modelContext.insert(item)
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
 
         withAnimation(.snappy(duration: 0.3)) {
             quickAddText = ""
@@ -624,7 +628,7 @@ struct TodoListView: View {
             }
         }
 
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
 
     private func handleNotificationsAfterToggle(_ todo: TodoItem) {
@@ -642,7 +646,7 @@ struct TodoListView: View {
         NotificationManager.shared.removeNotifications(forId: todoId)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(todo) }
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
 
     private func requestDeleteTodos(from source: [TodoItem], at offsets: IndexSet) {

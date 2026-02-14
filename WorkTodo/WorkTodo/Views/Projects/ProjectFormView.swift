@@ -148,9 +148,10 @@ struct ProjectFormView: View {
     private func save() {
         guard !isSaving else { return }
         isSaving = true
+        defer { isSaving = false }
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { isSaving = false; return }
+        guard !trimmedName.isEmpty else { return }
 
         if let existing = existingProject {
             existing.name = trimmedName
@@ -167,7 +168,7 @@ struct ProjectFormView: View {
         }
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
         dismiss()
     }
 

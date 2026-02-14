@@ -217,7 +217,7 @@ struct ProjectDetailView: View {
                 await NotificationManager.shared.scheduleNotification(for: todo)
             }
         }
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
 
     // MARK: - Actions
@@ -227,6 +227,6 @@ struct ProjectDetailView: View {
         NotificationManager.shared.removeNotifications(forId: todoId)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(todo) }
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
 }

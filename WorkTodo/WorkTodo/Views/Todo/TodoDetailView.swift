@@ -207,7 +207,7 @@ struct TodoDetailView: View {
                                         subtask.toggleCompleted()
                                     }
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    try? modelContext.save()
+                                    do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                                 } label: {
                                     Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                                         .foregroundStyle(subtask.isCompleted ? Theme.success : .secondary)
@@ -225,7 +225,7 @@ struct TodoDetailView: View {
                             for index in offsets {
                                 modelContext.delete(sorted[index])
                             }
-                            try? modelContext.save()
+                            do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                         }
 
                         HStack(spacing: 10) {
@@ -326,7 +326,7 @@ struct TodoDetailView: View {
         modelContext.insert(subtask)
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
 
         newSubtaskTitle = ""
     }
@@ -334,9 +334,10 @@ struct TodoDetailView: View {
     private func save() async {
         guard !isSaving else { return }
         isSaving = true
+        defer { isSaving = false }
 
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty else { isSaving = false; return }
+        guard !trimmedTitle.isEmpty else { return }
 
         let itemToSchedule: TodoItem
 
@@ -371,7 +372,7 @@ struct TodoDetailView: View {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
         // Save model context before dismissing
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
 
         // Schedule notification before dismiss so the model object is still valid
         await NotificationManager.shared.scheduleNotification(for: itemToSchedule)
@@ -437,7 +438,7 @@ struct NewTagSheet: View {
                         guard !trimmed.isEmpty else { return }
                         let tag = Tag(name: trimmed, colorHex: selectedColorHex)
                         modelContext.insert(tag)
-                        try? modelContext.save()
+                        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                         onCreated?(tag)
                         dismiss()
                     }

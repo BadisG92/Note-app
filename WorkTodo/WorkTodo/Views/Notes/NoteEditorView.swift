@@ -76,7 +76,7 @@ struct NoteEditorView: View {
                     if note.title != originalTitle || note.content != originalContent {
                         note.updatedAt = Date()
                     }
-                    try? modelContext.save()
+                    do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                     originalTitle = note.title
                     originalContent = note.content
                     dismiss()
@@ -89,7 +89,7 @@ struct NoteEditorView: View {
                     Button {
                         note.isPinned.toggle()
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        try? modelContext.save()
+                        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                     } label: {
                         Label(
                             note.isPinned ? "Unpin" : "Pin",
@@ -153,7 +153,7 @@ struct NoteEditorView: View {
             if !isNew,
                note.title != originalTitle || note.content != originalContent {
                 note.updatedAt = Date()
-                try? modelContext.save()
+                do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
             }
         }
     }

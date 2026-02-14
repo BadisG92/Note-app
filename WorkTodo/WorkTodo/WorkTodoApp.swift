@@ -54,7 +54,7 @@ struct WorkTodoApp: App {
                             await NotificationManager.shared.checkAuthorizationStatus()
                         }
                     case .background:
-                        try? sharedModelContainer.mainContext.save()
+                        do { try sharedModelContainer.mainContext.save() } catch { print("[WorkTodo] background save failed: \(error)") }
                     default:
                         break
                     }

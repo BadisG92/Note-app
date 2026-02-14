@@ -310,7 +310,7 @@ struct WorkTodoWidget: Widget {
         }
         .configurationDisplayName("Tasks")
         .description("See your tasks at a glance.")
-        .supportedFamilies([.systemSmall, .accessoryRectangular])
+        .supportedFamilies([.systemSmall])
     }
 
     @ViewBuilder

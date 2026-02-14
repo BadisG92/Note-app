@@ -73,7 +73,7 @@ struct NoteListView: View {
                     if let note = noteToDelete {
                         UINotificationFeedbackGenerator().notificationOccurred(.warning)
                         withAnimation { modelContext.delete(note) }
-                        try? modelContext.save()
+                        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                     }
                     noteToDelete = nil
                 }
@@ -130,7 +130,7 @@ struct NoteListView: View {
                             Button {
                                 withAnimation { note.isPinned.toggle() }
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                try? modelContext.save()
+                                do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                             } label: {
                                 Label(note.isPinned ? "Unpin" : "Pin",
                                       systemImage: note.isPinned ? "pin.slash" : "pin")
@@ -141,7 +141,7 @@ struct NoteListView: View {
                             Button {
                                 withAnimation { note.isPinned.toggle() }
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                try? modelContext.save()
+                                do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                             } label: {
                                 Label(note.isPinned ? "Unpin" : "Pin",
                                       systemImage: note.isPinned ? "pin.slash" : "pin")
@@ -156,7 +156,7 @@ struct NoteListView: View {
                         }
                         .accessibilityAction(named: note.isPinned ? "Unpin" : "Pin") {
                             withAnimation { note.isPinned.toggle() }
-                            try? modelContext.save()
+                            do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                         }
                         .accessibilityAction(named: "Delete") {
                             noteToDelete = note
@@ -190,7 +190,7 @@ struct NoteListView: View {
                         Button {
                             withAnimation { note.isPinned.toggle() }
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            try? modelContext.save()
+                            do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                         } label: {
                             Label(note.isPinned ? "Unpin" : "Pin",
                                   systemImage: note.isPinned ? "pin.slash" : "pin")
@@ -201,7 +201,7 @@ struct NoteListView: View {
                         Button {
                             withAnimation { note.isPinned.toggle() }
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            try? modelContext.save()
+                            do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                         } label: {
                             Label(note.isPinned ? "Unpin" : "Pin",
                                   systemImage: note.isPinned ? "pin.slash" : "pin")
@@ -216,7 +216,7 @@ struct NoteListView: View {
                     }
                     .accessibilityAction(named: note.isPinned ? "Unpin" : "Pin") {
                         withAnimation { note.isPinned.toggle() }
-                        try? modelContext.save()
+                        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
                     }
                     .accessibilityAction(named: "Delete") {
                         noteToDelete = note
@@ -251,7 +251,7 @@ struct NoteListView: View {
         if note.modelContext != nil,
            note.title.isEmpty && note.content.isEmpty {
             modelContext.delete(note)
-            try? modelContext.save()
+            do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
         }
     }
 
