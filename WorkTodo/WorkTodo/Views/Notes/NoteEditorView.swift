@@ -11,6 +11,7 @@ struct NoteEditorView: View {
     @State private var originalTitle: String
     @State private var originalContent: String
     @State private var showMarkdownPreview = false
+    @State private var showDiscardConfirmation = false
 
     private var isNew: Bool
 
@@ -64,9 +65,11 @@ struct NoteEditorView: View {
             if isNew {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        note.title = ""
-                        note.content = ""
-                        dismiss()
+                        if !note.title.isEmpty || !note.content.isEmpty {
+                            showDiscardConfirmation = true
+                        } else {
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -147,11 +150,23 @@ struct NoteEditorView: View {
             }
         }
         .onDisappear {
-            if !isNew,
+            if !isNew, note.modelContext != nil,
                note.title != originalTitle || note.content != originalContent {
                 note.updatedAt = Date()
                 do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
             }
+        }
+        .confirmationDialog(
+            "Discard Changes?",
+            isPresented: $showDiscardConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes", role: .destructive) {
+                note.title = ""
+                note.content = ""
+                dismiss()
+            }
+            Button("Keep Editing", role: .cancel) { }
         }
     }
 

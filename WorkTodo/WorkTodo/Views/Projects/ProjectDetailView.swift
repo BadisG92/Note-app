@@ -225,6 +225,7 @@ struct ProjectDetailView: View {
                     && $0.title == todo.title
                     && $0.dueDate == nextDate
                     && !$0.isCompleted
+                    && $0.project?.id == todo.project?.id
                 }) {
                     NotificationManager.shared.removeNotifications(for: duplicate)
                     modelContext.delete(duplicate)
