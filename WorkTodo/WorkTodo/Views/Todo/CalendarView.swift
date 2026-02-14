@@ -310,7 +310,11 @@ struct CalendarView: View {
                 Spacer()
 
                 Button {
-                    onAddTask(selectedDate)
+                    let timeComponents = calendar.dateComponents([.hour, .minute], from: Date())
+                    let taskDate = calendar.date(bySettingHour: timeComponents.hour ?? 9,
+                                                  minute: timeComponents.minute ?? 0,
+                                                  second: 0, of: selectedDate) ?? selectedDate
+                    onAddTask(taskDate)
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)

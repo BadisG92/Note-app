@@ -4,6 +4,7 @@ import SwiftData
 struct ProjectDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var project: Project
+    @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
 
     @State private var activeSheet: SheetState?
     @State private var todoToDelete: TodoItem?
@@ -219,7 +220,7 @@ struct ProjectDetailView: View {
             // Remove the auto-created next occurrence when un-completing a recurring task
             if todo.recurrenceRule != .none,
                let nextDate = todo.recurrenceRule.nextDate(from: todo.dueDate) {
-                if let duplicate = project.todos.first(where: {
+                if let duplicate = allTodos.first(where: {
                     $0.id != todo.id
                     && $0.title == todo.title
                     && $0.dueDate == nextDate

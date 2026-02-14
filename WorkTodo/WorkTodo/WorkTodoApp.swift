@@ -12,10 +12,19 @@ struct WorkTodoApp: App {
             Project.self,
             Tag.self
         ])
-        let modelConfiguration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: false
-        )
+        let modelConfiguration: ModelConfiguration
+        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.WorkTodo") {
+            modelConfiguration = ModelConfiguration(
+                schema: schema,
+                url: containerURL.appending(path: "WorkTodo.store"),
+                isStoredInMemoryOnly: false
+            )
+        } else {
+            modelConfiguration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false
+            )
+        }
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])

@@ -7,7 +7,16 @@ import SwiftData
 enum WidgetModelContainer {
     static let shared: ModelContainer = {
         let schema = Schema([TodoItem.self, Project.self, Tag.self, Note.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let config: ModelConfiguration
+        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.WorkTodo") {
+            config = ModelConfiguration(
+                schema: schema,
+                url: containerURL.appending(path: "WorkTodo.store"),
+                isStoredInMemoryOnly: false
+            )
+        } else {
+            config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        }
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {

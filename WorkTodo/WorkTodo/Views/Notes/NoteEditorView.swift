@@ -144,9 +144,6 @@ struct NoteEditorView: View {
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
                 isTitleFocused = true
-            } else {
-                originalTitle = note.title
-                originalContent = note.content
             }
         }
         .onDisappear {
