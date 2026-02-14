@@ -19,15 +19,15 @@ final class Project {
     }
 
     var activeTodoCount: Int {
-        todos.filter { !$0.isCompleted }.count
+        todos.filter { !$0.isSubtask && !$0.isCompleted }.count
     }
 
     var completedTodoCount: Int {
-        todos.filter { $0.isCompleted }.count
+        todos.filter { !$0.isSubtask && $0.isCompleted }.count
     }
 
     var totalTodoCount: Int {
-        todos.count
+        todos.filter { !$0.isSubtask }.count
     }
 
     var completionProgress: Double {

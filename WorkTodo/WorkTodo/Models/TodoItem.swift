@@ -152,6 +152,7 @@ final class TodoItem {
         for subtask in subtasks {
             let copy = TodoItem(title: subtask.title, details: subtask.details, dueDate: nextDate)
             copy.parentTask = next
+            next.subtasks.append(copy)
         }
 
         return next

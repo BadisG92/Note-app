@@ -430,6 +430,9 @@ struct TodoListView: View {
 
         let item = TodoItem(title: trimmed)
         item.project = selectedProjectFilter
+        if let tagFilter = selectedTagFilter {
+            item.tags = [tagFilter]
+        }
         modelContext.insert(item)
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -635,6 +638,20 @@ struct TodoListView: View {
             modelContext.insert(nextOccurrence)
             Task {
                 await NotificationManager.shared.scheduleNotification(for: nextOccurrence)
+            }
+        }
+
+        // If un-completing a recurring task, remove the auto-created next occurrence
+        if !todo.isCompleted && todo.recurrenceRule != .none,
+           let nextDate = todo.recurrenceRule.nextDate(from: todo.dueDate) {
+            if let duplicate = allTodos.first(where: {
+                $0.id != todo.id
+                && $0.title == todo.title
+                && $0.dueDate == nextDate
+                && !$0.isCompleted
+            }) {
+                NotificationManager.shared.removeNotifications(for: duplicate)
+                modelContext.delete(duplicate)
             }
         }
 

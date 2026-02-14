@@ -216,6 +216,19 @@ struct ProjectDetailView: View {
             Task {
                 await NotificationManager.shared.scheduleNotification(for: todo)
             }
+            // Remove the auto-created next occurrence when un-completing a recurring task
+            if todo.recurrenceRule != .none,
+               let nextDate = todo.recurrenceRule.nextDate(from: todo.dueDate) {
+                if let duplicate = project.todos.first(where: {
+                    $0.id != todo.id
+                    && $0.title == todo.title
+                    && $0.dueDate == nextDate
+                    && !$0.isCompleted
+                }) {
+                    NotificationManager.shared.removeNotifications(for: duplicate)
+                    modelContext.delete(duplicate)
+                }
+            }
         }
         do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
