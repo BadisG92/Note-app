@@ -134,6 +134,16 @@ struct TodoListView: View {
             .animation(.default, value: sortMode)
             .animation(.default, value: selectedProjectFilter?.id)
             .animation(.default, value: selectedTagFilter?.id)
+            .onChange(of: projects.map(\.id)) { _, newIds in
+                if let selected = selectedProjectFilter, !newIds.contains(selected.id) {
+                    selectedProjectFilter = nil
+                }
+            }
+            .onChange(of: allTags.map(\.id)) { _, newIds in
+                if let selected = selectedTagFilter, !newIds.contains(selected.id) {
+                    selectedTagFilter = nil
+                }
+            }
             .navigationTitle("Tasks")
             .searchable(text: $searchText, prompt: "Search tasks...")
             .toolbar {

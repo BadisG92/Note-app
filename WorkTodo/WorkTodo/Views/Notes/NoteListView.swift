@@ -31,12 +31,13 @@ struct NoteListView: View {
     }
 
     var body: some View {
+        let currentFiltered = filteredNotes
         NavigationStack {
             Group {
                 if allNotes.isEmpty {
                     emptyState
                         .transition(.opacity)
-                } else if filteredNotes.isEmpty {
+                } else if currentFiltered.isEmpty {
                     ContentUnavailableView.search(text: searchText)
                         .transition(.opacity)
                 } else {
@@ -45,7 +46,7 @@ struct NoteListView: View {
                 }
             }
             .animation(.easeOut(duration: Theme.animDefault), value: allNotes.isEmpty)
-            .animation(.easeOut(duration: Theme.animDefault), value: filteredNotes.isEmpty)
+            .animation(.easeOut(duration: Theme.animDefault), value: currentFiltered.isEmpty)
             .navigationTitle("Notes")
             .searchable(text: $searchText, prompt: "Search notes...")
             .toolbar {

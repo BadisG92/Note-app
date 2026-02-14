@@ -2,22 +2,34 @@ import WidgetKit
 import SwiftUI
 import SwiftData
 
+// MARK: - Shared Model Container
+
+enum WidgetModelContainer {
+    static let shared: ModelContainer = {
+        let schema = Schema([TodoItem.self, Project.self, Tag.self, Note.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        do {
+            return try ModelContainer(for: schema, configurations: [config])
+        } catch {
+            // Fallback: in-memory container so widget doesn't crash
+            do {
+                return try ModelContainer(for: schema, configurations: [
+                    ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                ])
+            } catch {
+                fatalError("Widget: cannot create ModelContainer: \(error)")
+            }
+        }
+    }()
+}
+
 // MARK: - Timeline Provider
 
 struct TodoWidgetProvider: TimelineProvider {
     let modelContainer: ModelContainer
 
     init() {
-        let schema = Schema([TodoItem.self, Project.self, Tag.self, Note.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        do {
-            self.modelContainer = try ModelContainer(for: schema, configurations: [config])
-        } catch {
-            // Fallback: in-memory container so widget doesn't crash
-            self.modelContainer = try! ModelContainer(for: schema, configurations: [
-                ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            ])
-        }
+        self.modelContainer = WidgetModelContainer.shared
     }
 
     func placeholder(in context: Context) -> TodoWidgetEntry {

@@ -147,6 +147,13 @@ final class TodoItem {
         )
         next.project = project
         next.tags = tags
+
+        // Copy subtasks so recurring checklists repeat
+        for subtask in subtasks {
+            let copy = TodoItem(title: subtask.title, details: subtask.details, dueDate: nextDate)
+            copy.parentTask = next
+        }
+
         return next
     }
 }

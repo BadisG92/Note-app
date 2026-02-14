@@ -184,7 +184,7 @@ struct ProjectListView: View {
     private func performDelete(_ project: Project) {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(project) }
-        try? modelContext.save()
+        do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
 }
 

@@ -73,6 +73,7 @@ struct TodoDetailView: View {
                 || dueDate != existing.dueDate
                 || priority != existing.priority
                 || reminderFrequency != existing.reminderFrequency
+                || customReminderDays != existing.customReminderDays
                 || selectedProject?.id != existing.project?.id
                 || recurrenceRule != existing.recurrenceRule
                 || selectedTags != Set(existing.tags.map(\.id))

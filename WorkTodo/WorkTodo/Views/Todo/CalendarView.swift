@@ -389,6 +389,10 @@ struct CalendarView: View {
     private func moveMonth(by value: Int) {
         if let newMonth = calendar.date(byAdding: .month, value: value, to: displayedMonth) {
             displayedMonth = newMonth
+            // Keep selectedDate in sync with displayed month
+            if let firstOfNewMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: newMonth)) {
+                selectedDate = firstOfNewMonth
+            }
         }
     }
 }
