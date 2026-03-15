@@ -65,8 +65,11 @@ struct WorkTodoApp: App {
                     switch newPhase {
                     case .active:
                         NotificationManager.clearBadge()
-                        Task {
+                        Task { @MainActor in
                             await NotificationManager.shared.checkAuthorizationStatus()
+                            // Top up finite recurring notifications that may have been
+                            // exhausted (60-day scheduling window)
+                            await refreshNotifications()
                         }
                     case .background:
                         do { try sharedModelContainer.mainContext.save() } catch { print("[WorkTodo] background save failed: \(error)") }
@@ -77,5 +80,21 @@ struct WorkTodoApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)
+    }
+
+    /// Re-schedule notifications for active tasks with reminders, topping up
+    /// the 60-day finite window so recurring reminders never silently stop.
+    @MainActor
+    private func refreshNotifications() async {
+        guard NotificationManager.shared.isAuthorized else { return }
+        let context = sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<TodoItem>(
+            sortBy: [SortDescriptor(\TodoItem.dueDate)]
+        )
+        guard let todos = try? context.fetch(descriptor) else { return }
+        let active = todos.filter { !$0.isCompleted && $0.parentTask == nil && $0.reminderFrequency != .none }
+        for todo in active {
+            await NotificationManager.shared.scheduleNotification(for: todo)
+        }
     }
 }

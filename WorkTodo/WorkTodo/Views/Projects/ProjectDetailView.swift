@@ -260,6 +260,7 @@ struct ProjectDetailView: View {
                     modelContext.insert(subtask)
                 }
                 Task { @MainActor in
+                    guard !nextOccurrence.isDeleted else { return }
                     await NotificationManager.shared.scheduleNotification(for: nextOccurrence)
                 }
             }
