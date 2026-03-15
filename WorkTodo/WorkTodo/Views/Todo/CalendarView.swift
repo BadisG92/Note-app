@@ -362,6 +362,13 @@ struct CalendarView: View {
                             }
                         }
 
+                        .accessibilityAction(named: "Delete") {
+                            onDelete(todo)
+                        }
+                        .accessibilityAction(named: todo.isCompleted ? "Mark incomplete" : "Mark complete") {
+                            onToggle(todo)
+                        }
+
                         if todo.id != selectedDayTodos.last?.id {
                             Divider()
                                 .padding(.leading, Theme.minTouchTarget)

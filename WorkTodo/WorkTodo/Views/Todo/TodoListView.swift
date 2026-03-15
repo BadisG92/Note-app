@@ -187,8 +187,13 @@ struct TodoListView: View {
                     TodoDetailView(dueDate: date)
                         .presentationDragIndicator(.visible)
                 case .edit(let todo, _):
-                    TodoDetailView(todo: todo)
-                        .presentationDragIndicator(.visible)
+                    if todo.isDeleted {
+                        Text("")
+                            .onAppear { activeSheet = nil }
+                    } else {
+                        TodoDetailView(todo: todo)
+                            .presentationDragIndicator(.visible)
+                    }
                 }
             }
             .confirmationDialog(
@@ -431,6 +436,10 @@ struct TodoListView: View {
         let trimmed = quickAddText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        // Clear text immediately (outside animation) to prevent duplicate
+        // submissions from rapid Return key taps
+        quickAddText = ""
+
         let item = TodoItem(title: trimmed)
         item.project = selectedProjectFilter
         if let tagFilter = selectedTagFilter {
@@ -440,10 +449,6 @@ struct TodoListView: View {
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
-
-        withAnimation(.snappy(duration: 0.3)) {
-            quickAddText = ""
-        }
     }
 
     // MARK: - Task List Content

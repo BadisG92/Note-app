@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 @main
 struct WorkTodoApp: App {
@@ -52,6 +53,11 @@ struct WorkTodoApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView()
+                .onOpenURL { url in
+                    if url.scheme == "worktodo" && url.host == "today" {
+                        UserDefaults.standard.set(0, forKey: "selectedTab")
+                    }
+                }
                 .task {
                     await NotificationManager.shared.requestAuthorization()
                 }
@@ -64,6 +70,7 @@ struct WorkTodoApp: App {
                         }
                     case .background:
                         do { try sharedModelContainer.mainContext.save() } catch { print("[WorkTodo] background save failed: \(error)") }
+                        WidgetCenter.shared.reloadAllTimelines()
                     default:
                         break
                     }

@@ -51,7 +51,8 @@ struct TodoWidgetProvider: TimelineProvider {
             ],
             overdueCount: 1,
             todayActiveCount: 1,
-            totalActiveCount: 5
+            totalActiveCount: 5,
+            todayDisplayTotalCount: 3
         )
     }
 
@@ -65,7 +66,10 @@ struct TodoWidgetProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodoWidgetEntry>) -> Void) {
         Task { @MainActor in
             let entry = fetchEntry()
-            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
+            let now = Date()
+            let thirtyMinutes = Calendar.current.date(byAdding: .minute, value: 30, to: now) ?? now
+            let nextMidnight = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: now) ?? now)
+            let nextUpdate = min(thirtyMinutes, nextMidnight)
             let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
             completion(timeline)
         }
@@ -97,7 +101,13 @@ struct TodoWidgetProvider: TimelineProvider {
             calendar.startOfDay(for: todo.dueDate) < startOfToday
         }
 
-        let displayTasks: [WidgetTask] = (overdueTodos + todayTodos).prefix(6).map { todo in
+        let completedTodayTodos = allTodos.filter { todo in
+            todo.isCompleted
+                && todo.dueDate >= startOfToday && todo.dueDate < endOfToday
+        }
+
+        let allDisplayable = overdueTodos + todayTodos + completedTodayTodos
+        let displayTasks: [WidgetTask] = allDisplayable.prefix(6).map { todo in
             WidgetTask(
                 title: todo.title,
                 isCompleted: todo.isCompleted,
@@ -111,7 +121,8 @@ struct TodoWidgetProvider: TimelineProvider {
             todayTasks: displayTasks,
             overdueCount: overdueTodos.count,
             todayActiveCount: todayTodos.count,
-            totalActiveCount: activeTodos.count
+            totalActiveCount: activeTodos.count,
+            todayDisplayTotalCount: allDisplayable.count
         )
     }
 }
@@ -132,6 +143,8 @@ struct TodoWidgetEntry: TimelineEntry {
     let overdueCount: Int
     let todayActiveCount: Int
     let totalActiveCount: Int
+    /// Total number of tasks eligible for display (overdue + today + completed today), before truncation
+    let todayDisplayTotalCount: Int
 }
 
 // MARK: - Small Widget View
@@ -280,8 +293,8 @@ struct MediumWidgetView: View {
                     }
                 }
 
-                if entry.todayTasks.count > 4 {
-                    Text("+\(entry.todayTasks.count - 4) more")
+                if entry.todayDisplayTotalCount > 4 {
+                    Text("+\(entry.todayDisplayTotalCount - 4) more")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -337,6 +350,7 @@ struct WorkTodoWidget: Widget {
     @ViewBuilder
     private func widgetContent(for entry: TodoWidgetEntry) -> some View {
         SmallWidgetView(entry: entry)
+            .widgetURL(URL(string: "worktodo://today"))
     }
 }
 
@@ -355,6 +369,7 @@ struct WorkTodoMediumWidget: Widget {
                         .background()
                 }
             }
+            .widgetURL(URL(string: "worktodo://today"))
         }
         .configurationDisplayName("Today's Tasks")
         .description("See today's task list.")
@@ -404,4 +419,78 @@ extension Color {
         }
         self.init(red: r, green: g, blue: b)
     }
+}
+
+// MARK: - Previews
+
+#Preview("Small - Active", as: .systemSmall) {
+    WorkTodoWidget()
+} timeline: {
+    TodoWidgetEntry(
+        date: Date(),
+        todayTasks: [
+            .init(title: "Design review", isCompleted: false, priority: 2, isOverdue: false),
+            .init(title: "Team standup", isCompleted: true, priority: 1, isOverdue: false),
+        ],
+        overdueCount: 1,
+        todayActiveCount: 2,
+        totalActiveCount: 5,
+        todayDisplayTotalCount: 2
+    )
+}
+
+#Preview("Small - All Done", as: .systemSmall) {
+    WorkTodoWidget()
+} timeline: {
+    TodoWidgetEntry(
+        date: Date(),
+        todayTasks: [],
+        overdueCount: 0,
+        todayActiveCount: 0,
+        totalActiveCount: 0,
+        todayDisplayTotalCount: 0
+    )
+}
+
+#Preview("Medium - Tasks", as: .systemMedium) {
+    WorkTodoMediumWidget()
+} timeline: {
+    TodoWidgetEntry(
+        date: Date(),
+        todayTasks: [
+            .init(title: "Ship feature", isCompleted: false, priority: 3, isOverdue: true),
+            .init(title: "Code review", isCompleted: false, priority: 2, isOverdue: false),
+            .init(title: "Update docs", isCompleted: true, priority: 1, isOverdue: false),
+        ],
+        overdueCount: 1,
+        todayActiveCount: 2,
+        totalActiveCount: 8,
+        todayDisplayTotalCount: 3
+    )
+}
+
+#Preview("Medium - Empty", as: .systemMedium) {
+    WorkTodoMediumWidget()
+} timeline: {
+    TodoWidgetEntry(
+        date: Date(),
+        todayTasks: [],
+        overdueCount: 0,
+        todayActiveCount: 0,
+        totalActiveCount: 3,
+        todayDisplayTotalCount: 0
+    )
+}
+
+#Preview("Accessory", as: .accessoryRectangular) {
+    WorkTodoAccessoryWidget()
+} timeline: {
+    TodoWidgetEntry(
+        date: Date(),
+        todayTasks: [],
+        overdueCount: 0,
+        todayActiveCount: 0,
+        totalActiveCount: 12,
+        todayDisplayTotalCount: 0
+    )
 }

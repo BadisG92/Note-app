@@ -42,13 +42,19 @@ struct ProjectDetailView: View {
 
     var body: some View {
         Group {
-            if topLevelTodos.isEmpty {
+            if project.isDeleted {
+                ContentUnavailableView {
+                    Label("Project Deleted", systemImage: "trash")
+                } description: {
+                    Text("This project has been removed.")
+                }
+            } else if topLevelTodos.isEmpty {
                 emptyState
             } else {
                 taskList
             }
         }
-        .navigationTitle(project.name)
+        .navigationTitle(project.isDeleted ? "" : project.name)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 12) {
@@ -78,8 +84,13 @@ struct ProjectDetailView: View {
                 TodoDetailView(project: project)
                     .presentationDragIndicator(.visible)
             case .edit(let todo, _):
-                TodoDetailView(todo: todo)
-                    .presentationDragIndicator(.visible)
+                if todo.isDeleted {
+                    Text("")
+                        .onAppear { activeSheet = nil }
+                } else {
+                    TodoDetailView(todo: todo)
+                        .presentationDragIndicator(.visible)
+                }
             case .editProject:
                 ProjectFormView(project: project)
                     .presentationDragIndicator(.visible)
@@ -196,6 +207,38 @@ struct ProjectDetailView: View {
                 )
             }
             .tint(todo.isCompleted ? Theme.amber : Theme.success)
+        }
+        .contextMenu {
+            Button {
+                activeSheet = .edit(todo)
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button {
+                toggleTodo(todo)
+            } label: {
+                Label(
+                    todo.isCompleted ? "Mark Active" : "Mark Complete",
+                    systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark.circle"
+                )
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                todoToDelete = todo
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .accessibilityAction(named: "Delete") {
+            todoToDelete = todo
+            showDeleteConfirmation = true
+        }
+        .accessibilityAction(named: todo.isCompleted ? "Mark incomplete" : "Mark complete") {
+            toggleTodo(todo)
         }
     }
 

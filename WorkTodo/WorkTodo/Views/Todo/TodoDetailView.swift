@@ -335,6 +335,9 @@ struct TodoDetailView: View {
         let trimmed = newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        // Clear immediately to prevent duplicate subtasks from rapid onSubmit
+        newSubtaskTitle = ""
+
         let subtask = TodoItem(title: trimmed, dueDate: parent.dueDate)
         subtask.assignParent(parent)
         subtask.project = parent.project
@@ -342,17 +345,17 @@ struct TodoDetailView: View {
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
-
-        newSubtaskTitle = ""
     }
 
     private func save() async {
         guard !isSaving else { return }
         isSaving = true
-        defer { isSaving = false }
+        // Do NOT reset isSaving — dismiss() is not synchronous, so resetting
+        // allows a rapid second tap to create duplicates. The view will be
+        // deallocated on dismiss, naturally releasing this flag.
 
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty else { return }
+        guard !trimmedTitle.isEmpty else { isSaving = false; return }
 
         let itemToSchedule: TodoItem
 
@@ -404,6 +407,7 @@ struct NewTagSheet: View {
 
     @State private var name = ""
     @State private var selectedColorHex = "C4704B"
+    @State private var isSaving = false
 
     var onCreated: ((Tag) -> Void)?
 
@@ -449,8 +453,10 @@ struct NewTagSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
+                        guard !isSaving else { return }
+                        isSaving = true
                         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty else { return }
+                        guard !trimmed.isEmpty else { isSaving = false; return }
                         let tag = Tag(name: trimmed, colorHex: selectedColorHex)
                         modelContext.insert(tag)
                         do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
@@ -458,7 +464,7 @@ struct NewTagSheet: View {
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                 }
             }
         }

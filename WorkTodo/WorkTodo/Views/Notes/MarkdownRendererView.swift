@@ -282,9 +282,15 @@ struct MarkdownRendererView: View {
                 continue
             }
 
-            // Regular character
-            result = result + Text(String(remaining[remaining.startIndex]))
-            remaining = remaining[remaining.index(after: remaining.startIndex)...]
+            // Accumulate plain text run until the next markdown marker
+            var plainEnd = remaining.index(after: remaining.startIndex)
+            while plainEnd < remaining.endIndex {
+                let ch = remaining[plainEnd]
+                if ch == "*" || ch == "~" || ch == "`" { break }
+                plainEnd = remaining.index(after: plainEnd)
+            }
+            result = result + Text(remaining[remaining.startIndex..<plainEnd])
+            remaining = remaining[plainEnd...]
         }
 
         return result

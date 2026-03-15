@@ -148,10 +148,12 @@ struct ProjectFormView: View {
     private func save() {
         guard !isSaving else { return }
         isSaving = true
-        defer { isSaving = false }
+        // Do NOT reset isSaving — dismiss() is not synchronous, so resetting
+        // allows a rapid second tap to create duplicates. The view will be
+        // deallocated on dismiss, naturally releasing this flag.
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return }
+        guard !trimmedName.isEmpty else { isSaving = false; return }
 
         if let existing = existingProject {
             existing.name = trimmedName

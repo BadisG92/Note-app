@@ -12,6 +12,7 @@ struct NoteEditorView: View {
     @State private var originalContent: String
     @State private var showMarkdownPreview = false
     @State private var showDiscardConfirmation = false
+    @State private var isSaving = false
 
     private var isNew: Bool
 
@@ -76,6 +77,12 @@ struct NoteEditorView: View {
 
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
+                    guard !isSaving else { return }
+                    isSaving = true
+                    // Do NOT use defer to reset isSaving — in a synchronous
+                    // closure, defer fires immediately, coalescing with the
+                    // set above and making the guard ineffective against
+                    // rapid double taps. The view will be deallocated on dismiss.
                     if note.title != originalTitle || note.content != originalContent {
                         note.updatedAt = Date()
                     }
@@ -85,6 +92,7 @@ struct NoteEditorView: View {
                     dismiss()
                 }
                 .fontWeight(.semibold)
+                .disabled(isSaving)
             }
 
             ToolbarItem(placement: .secondaryAction) {
@@ -150,7 +158,7 @@ struct NoteEditorView: View {
             }
         }
         .onDisappear {
-            if !isNew, note.modelContext != nil,
+            if !isNew, note.modelContext != nil, !note.isDeleted,
                note.title != originalTitle || note.content != originalContent {
                 note.updatedAt = Date()
                 do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
