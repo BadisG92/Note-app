@@ -89,6 +89,7 @@ struct NoteEditorView: View {
                     // closure, defer fires immediately, coalescing with the
                     // set above and making the guard ineffective against
                     // rapid double taps. The view will be deallocated on dismiss.
+                    note.title = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
                     if note.title != originalTitle || note.content != originalContent {
                         note.updatedAt = Date()
                     }
@@ -164,6 +165,9 @@ struct NoteEditorView: View {
             }
         }
         .onDisappear {
+            if !isNew, !isSaving, note.modelContext != nil, !note.isDeleted {
+                note.title = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             if !isNew, !isSaving, note.modelContext != nil, !note.isDeleted,
                note.title != originalTitle || note.content != originalContent {
                 note.updatedAt = Date()

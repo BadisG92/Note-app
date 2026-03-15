@@ -133,9 +133,20 @@ final class TodoItem {
     }
 
     /// Creates the next occurrence of a recurring task. Returns nil if not recurring.
+    /// If the computed next date is still in the past, fast-forwards to the first
+    /// future occurrence to avoid generating chains of overdue tasks.
     func createNextOccurrence() -> TodoItem? {
         guard recurrenceRule != .none else { return nil }
-        guard let nextDate = recurrenceRule.nextDate(from: dueDate) else { return nil }
+        guard var nextDate = recurrenceRule.nextDate(from: dueDate) else { return nil }
+
+        // Skip past dates to avoid overdue chains
+        let now = Date()
+        var attempts = 0
+        while nextDate < now, attempts < 1000 {
+            guard let advanced = recurrenceRule.nextDate(from: nextDate) else { break }
+            nextDate = advanced
+            attempts += 1
+        }
 
         let next = TodoItem(
             title: title,

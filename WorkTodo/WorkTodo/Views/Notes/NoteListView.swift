@@ -259,7 +259,7 @@ struct NoteListView: View {
     private func cleanupEmptyNewNote() {
         guard let note = pendingCleanupNote else { return }
         pendingCleanupNote = nil
-        if note.modelContext != nil,
+        if note.modelContext != nil, !note.isDeleted,
            note.title.isEmpty && note.content.isEmpty {
             modelContext.delete(note)
             do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }

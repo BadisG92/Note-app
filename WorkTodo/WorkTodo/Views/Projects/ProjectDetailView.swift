@@ -243,6 +243,7 @@ struct ProjectDetailView: View {
     }
 
     private func toggleTodo(_ todo: TodoItem) {
+        guard !todo.isDeleted else { return }
         withAnimation(.snappy(duration: Theme.animSmooth)) {
             todo.toggleCompleted()
         }
