@@ -85,7 +85,10 @@ struct TodoListView: View {
         case .dueDate:
             result.sort { $0.dueDate < $1.dueDate }
         case .priority:
-            result.sort { $0.priority > $1.priority }
+            result.sort {
+                if $0.priority != $1.priority { return $0.priority > $1.priority }
+                return $0.dueDate < $1.dueDate
+            }
         case .created:
             result.sort { $0.createdAt > $1.createdAt }
         }

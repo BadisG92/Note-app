@@ -79,6 +79,11 @@ struct TodoDetailView: View {
                 || selectedTags != Set(existing.tags.map(\.id))
         }
         return !title.isEmpty || !details.isEmpty
+            || priority != .medium
+            || reminderFrequency != .none
+            || recurrenceRule != .none
+            || selectedProject != nil
+            || !selectedTags.isEmpty
     }
 
     var body: some View {
@@ -201,11 +206,17 @@ struct TodoDetailView: View {
 
                 if isEditing, let existing = existingItem {
                     Section {
-                        ForEach(existing.subtasks.sorted(by: { ($0.isCompleted ? 1 : 0) < ($1.isCompleted ? 1 : 0) })) { subtask in
+                        ForEach(existing.subtasks.sorted(by: {
+                        if $0.isCompleted != $1.isCompleted { return !$0.isCompleted }
+                        return $0.createdAt < $1.createdAt
+                    })) { subtask in
                             HStack(spacing: 10) {
                                 Button {
                                     withAnimation(.snappy(duration: Theme.animSmooth)) {
                                         subtask.toggleCompleted()
+                                    }
+                                    if let parent = existingItem {
+                                        parent.updatedAt = Date()
                                     }
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
@@ -222,7 +233,10 @@ struct TodoDetailView: View {
                             }
                         }
                         .onDelete { offsets in
-                            let sorted = existing.subtasks.sorted(by: { ($0.isCompleted ? 1 : 0) < ($1.isCompleted ? 1 : 0) })
+                            let sorted = existing.subtasks.sorted(by: {
+                                if $0.isCompleted != $1.isCompleted { return !$0.isCompleted }
+                                return $0.createdAt < $1.createdAt
+                            })
                             for index in offsets where index < sorted.count {
                                 modelContext.delete(sorted[index])
                             }
