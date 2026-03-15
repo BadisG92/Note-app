@@ -644,7 +644,10 @@ struct TodoListView: View {
         // If completing a recurring task, create the next occurrence
         if todo.isCompleted, let nextOccurrence = todo.createNextOccurrence() {
             modelContext.insert(nextOccurrence)
-            Task {
+            for subtask in nextOccurrence.subtasks {
+                modelContext.insert(subtask)
+            }
+            Task { @MainActor in
                 await NotificationManager.shared.scheduleNotification(for: nextOccurrence)
             }
         }
@@ -674,7 +677,7 @@ struct TodoListView: View {
                 NotificationManager.shared.removeNotifications(for: subtask)
             }
         } else {
-            Task {
+            Task { @MainActor in
                 await NotificationManager.shared.scheduleNotification(for: todo)
             }
         }

@@ -59,6 +59,16 @@ struct NoteListView: View {
                     .accessibilityHint("Creates a new blank note")
                 }
             }
+            .onAppear {
+                // Clean up phantom empty notes left by interrupted creation (e.g., app kill)
+                let emptyNotes = allNotes.filter { $0.title.isEmpty && $0.content.isEmpty }
+                for note in emptyNotes {
+                    modelContext.delete(note)
+                }
+                if !emptyNotes.isEmpty {
+                    do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
+                }
+            }
             .sheet(item: $newNote) { note in
                 NoteEditorView(note: note, isNew: true)
                     .presentationDragIndicator(.visible)

@@ -256,12 +256,15 @@ struct ProjectDetailView: View {
             // Create next occurrence for recurring tasks
             if let nextOccurrence = todo.createNextOccurrence() {
                 modelContext.insert(nextOccurrence)
-                Task {
+                for subtask in nextOccurrence.subtasks {
+                    modelContext.insert(subtask)
+                }
+                Task { @MainActor in
                     await NotificationManager.shared.scheduleNotification(for: nextOccurrence)
                 }
             }
         } else {
-            Task {
+            Task { @MainActor in
                 await NotificationManager.shared.scheduleNotification(for: todo)
             }
             // Remove the auto-created next occurrence when un-completing a recurring task

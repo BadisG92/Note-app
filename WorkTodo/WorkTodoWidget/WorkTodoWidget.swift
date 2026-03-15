@@ -82,14 +82,12 @@ struct TodoWidgetProvider: TimelineProvider {
         let startOfToday = calendar.startOfDay(for: Date())
         let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
+        // Avoid #Predicate with optional relationship == nil (crashes on iOS 17.0-17.2)
         let descriptor = FetchDescriptor<TodoItem>(
-            predicate: #Predicate<TodoItem> { item in
-                item.parentTask == nil
-            },
             sortBy: [SortDescriptor(\TodoItem.dueDate)]
         )
 
-        let allTodos = (try? context.fetch(descriptor)) ?? []
+        let allTodos = ((try? context.fetch(descriptor)) ?? []).filter { $0.parentTask == nil }
 
         let activeTodos = allTodos.filter { !$0.isCompleted }
 
