@@ -29,6 +29,9 @@ final class NotificationManager: ObservableObject {
     func scheduleNotification(for item: TodoItem) async {
         removeNotifications(for: item)
 
+        if !isAuthorized {
+            await checkAuthorizationStatus()
+        }
         guard isAuthorized else { return }
         guard item.reminderFrequency != .none, !item.isCompleted else { return }
 

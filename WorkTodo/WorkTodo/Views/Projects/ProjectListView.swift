@@ -117,7 +117,7 @@ struct ProjectListView: View {
                 }
             }
             .onDelete { offsets in
-                guard let first = offsets.first else { return }
+                guard let first = offsets.first, first < projects.count else { return }
                 projectToDelete = projects[first]
                 showDeleteConfirmation = true
             }

@@ -257,7 +257,7 @@ struct NoteListView: View {
     }
 
     private func requestDeleteNotes(from source: [Note], at offsets: IndexSet) {
-        guard let first = offsets.first else { return }
+        guard let first = offsets.first, first < source.count else { return }
         noteToDelete = source[first]
         showDeleteConfirmation = true
     }

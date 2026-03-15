@@ -150,7 +150,14 @@ final class TodoItem {
 
         // Copy subtasks so recurring checklists repeat
         for subtask in subtasks {
-            let copy = TodoItem(title: subtask.title, details: subtask.details, dueDate: nextDate)
+            let copy = TodoItem(
+                title: subtask.title,
+                details: subtask.details,
+                dueDate: nextDate,
+                priority: subtask.priority,
+                reminderFrequency: subtask.reminderFrequency,
+                customReminderDays: subtask.customReminderDays
+            )
             copy.parentTask = next
             next.subtasks.append(copy)
         }

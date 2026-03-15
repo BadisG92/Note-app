@@ -662,6 +662,9 @@ struct TodoListView: View {
     private func handleNotificationsAfterToggle(_ todo: TodoItem) {
         if todo.isCompleted {
             NotificationManager.shared.removeNotifications(for: todo)
+            for subtask in todo.subtasks {
+                NotificationManager.shared.removeNotifications(for: subtask)
+            }
         } else {
             Task {
                 await NotificationManager.shared.scheduleNotification(for: todo)
@@ -672,13 +675,16 @@ struct TodoListView: View {
     private func performDelete(_ todo: TodoItem) {
         let todoId = todo.id
         NotificationManager.shared.removeNotifications(forId: todoId)
+        for subtask in todo.subtasks {
+            NotificationManager.shared.removeNotifications(forId: subtask.id)
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(todo) }
         do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
     }
 
     private func requestDeleteTodos(from source: [TodoItem], at offsets: IndexSet) {
-        guard let first = offsets.first else { return }
+        guard let first = offsets.first, first < source.count else { return }
         todoToDelete = source[first]
         showDeleteConfirmation = true
     }

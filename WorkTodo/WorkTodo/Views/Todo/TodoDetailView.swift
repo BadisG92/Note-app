@@ -223,7 +223,7 @@ struct TodoDetailView: View {
                         }
                         .onDelete { offsets in
                             let sorted = existing.subtasks.sorted(by: { ($0.isCompleted ? 1 : 0) < ($1.isCompleted ? 1 : 0) })
-                            for index in offsets {
+                            for index in offsets where index < sorted.count {
                                 modelContext.delete(sorted[index])
                             }
                             do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }

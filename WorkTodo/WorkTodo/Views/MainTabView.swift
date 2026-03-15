@@ -5,6 +5,9 @@ struct MainTabView: View {
     @AppStorage("selectedTab") private var selectedTab = 0
     @Query(sort: \TodoItem.dueDate) private var allTodos: [TodoItem]
 
+    /// Valid tab indices for the current app version.
+    private static let validTabs: ClosedRange<Int> = 0...2
+
     /// Badge shows only overdue + due today top-level tasks (actionable items)
     private var badgeCount: Int {
         let calendar = Calendar.current
@@ -17,7 +20,10 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: Binding(
+            get: { Self.validTabs.contains(selectedTab) ? selectedTab : 0 },
+            set: { selectedTab = $0 }
+        )) {
             TodoListView()
                 .tabItem {
                     Label("Tasks", systemImage: "checklist")

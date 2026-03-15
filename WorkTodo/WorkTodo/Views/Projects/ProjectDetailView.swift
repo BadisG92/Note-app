@@ -9,16 +9,17 @@ struct ProjectDetailView: View {
     @State private var activeSheet: SheetState?
     @State private var todoToDelete: TodoItem?
     @State private var showDeleteConfirmation = false
-    @State private var showEditSheet = false
 
     enum SheetState: Identifiable {
         case add(UUID = UUID())
         case edit(TodoItem, UUID = UUID())
+        case editProject(UUID = UUID())
 
         var id: String {
             switch self {
             case .add(let token): return "add-\(token)"
             case .edit(_, let token): return "edit-\(token)"
+            case .editProject(let token): return "editProject-\(token)"
             }
         }
     }
@@ -52,7 +53,8 @@ struct ProjectDetailView: View {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 12) {
                     Button {
-                        showEditSheet = true
+                        guard activeSheet == nil else { return }
+                        activeSheet = .editProject
                     } label: {
                         Image(systemName: "pencil.circle")
                             .font(.body)
@@ -78,11 +80,10 @@ struct ProjectDetailView: View {
             case .edit(let todo, _):
                 TodoDetailView(todo: todo)
                     .presentationDragIndicator(.visible)
+            case .editProject:
+                ProjectFormView(project: project)
+                    .presentationDragIndicator(.visible)
             }
-        }
-        .sheet(isPresented: $showEditSheet) {
-            ProjectFormView(project: project)
-                .presentationDragIndicator(.visible)
         }
         .confirmationDialog(
             "Delete Task",
@@ -206,6 +207,9 @@ struct ProjectDetailView: View {
             .impactOccurred()
         if todo.isCompleted {
             NotificationManager.shared.removeNotifications(for: todo)
+            for subtask in todo.subtasks {
+                NotificationManager.shared.removeNotifications(for: subtask)
+            }
             // Create next occurrence for recurring tasks
             if let nextOccurrence = todo.createNextOccurrence() {
                 modelContext.insert(nextOccurrence)
@@ -240,6 +244,9 @@ struct ProjectDetailView: View {
     private func performDelete(_ todo: TodoItem) {
         let todoId = todo.id
         NotificationManager.shared.removeNotifications(forId: todoId)
+        for subtask in todo.subtasks {
+            NotificationManager.shared.removeNotifications(forId: subtask.id)
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation(.snappy(duration: Theme.animDefault)) { modelContext.delete(todo) }
         do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }
