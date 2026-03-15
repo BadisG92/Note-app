@@ -456,28 +456,36 @@ struct TodoListView: View {
     private func todoListContent(_ filtered: [TodoItem]) -> some View {
         let calendar = Calendar.current
         let startOfToday = calendar.startOfDay(for: Date())
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+        let startOfDayAfterTomorrow = calendar.date(byAdding: .day, value: 2, to: startOfToday)!
+        let endOfWeek = calendar.date(byAdding: .day, value: 7, to: startOfToday)!
 
-        let overdue = filtered.filter { $0.isOverdue }
-        let today = filtered.filter {
-            !$0.isCompleted && !$0.isOverdue
-            && calendar.isDateInToday($0.dueDate)
+        // Single-pass partition to avoid redundant isOverdue/Calendar calls
+        var overdue: [TodoItem] = []
+        var today: [TodoItem] = []
+        var tomorrow: [TodoItem] = []
+        var thisWeek: [TodoItem] = []
+        var later: [TodoItem] = []
+        var completed: [TodoItem] = []
+
+        for item in filtered {
+            if item.isCompleted {
+                completed.append(item)
+            } else {
+                let dayStart = calendar.startOfDay(for: item.dueDate)
+                if dayStart < startOfToday {
+                    overdue.append(item)
+                } else if dayStart < startOfTomorrow {
+                    today.append(item)
+                } else if dayStart < startOfDayAfterTomorrow {
+                    tomorrow.append(item)
+                } else if dayStart < endOfWeek {
+                    thisWeek.append(item)
+                } else {
+                    later.append(item)
+                }
+            }
         }
-        let tomorrow = filtered.filter {
-            !$0.isCompleted && !$0.isOverdue
-            && calendar.isDateInTomorrow($0.dueDate)
-        }
-        let thisWeek = filtered.filter {
-            guard !$0.isCompleted && !$0.isOverdue else { return false }
-            let start = calendar.date(byAdding: .day, value: 2, to: startOfToday)!
-            let end = calendar.date(byAdding: .day, value: 7, to: startOfToday)!
-            return $0.dueDate >= start && $0.dueDate < end
-        }
-        let later = filtered.filter {
-            guard !$0.isCompleted && !$0.isOverdue else { return false }
-            let end = calendar.date(byAdding: .day, value: 7, to: startOfToday)!
-            return $0.dueDate >= end
-        }
-        let completed = filtered.filter { $0.isCompleted }
 
         return List {
             // Quick add row

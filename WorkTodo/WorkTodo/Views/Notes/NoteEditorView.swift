@@ -23,12 +23,18 @@ struct NoteEditorView: View {
         _originalContent = State(initialValue: note.content)
     }
 
+    // Pre-compiled regex patterns to avoid recompilation on every keystroke
+    private static let headingRegex = try? NSRegularExpression(pattern: #"^#{1,3}\s"#, options: .anchorsMatchLines)
+    private static let listRegex = try? NSRegularExpression(pattern: #"^[-*]\s"#, options: .anchorsMatchLines)
+    private static let quoteRegex = try? NSRegularExpression(pattern: #"^>\s"#, options: .anchorsMatchLines)
+
     private var hasMarkdownContent: Bool {
         let c = note.content
-        return c.contains("**") || c.contains("```") || c.contains("~~")
-            || c.range(of: #"^#{1,3}\s"#, options: [.regularExpression, .anchorsMatchLines]) != nil
-            || c.range(of: #"^[-*]\s"#, options: [.regularExpression, .anchorsMatchLines]) != nil
-            || c.range(of: #"^>\s"#, options: [.regularExpression, .anchorsMatchLines]) != nil
+        if c.contains("**") || c.contains("```") || c.contains("~~") { return true }
+        let range = NSRange(c.startIndex..., in: c)
+        return Self.headingRegex?.firstMatch(in: c, range: range) != nil
+            || Self.listRegex?.firstMatch(in: c, range: range) != nil
+            || Self.quoteRegex?.firstMatch(in: c, range: range) != nil
     }
 
     private var editorContent: some View {

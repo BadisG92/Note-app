@@ -18,21 +18,23 @@ final class Project {
         Color(hex: colorHex)
     }
 
-    var activeTodoCount: Int {
-        todos.filter { !$0.isSubtask && !$0.isCompleted }.count
+    /// Single-pass computation of (active, completed, total) counts excluding subtasks
+    private var todoCounts: (active: Int, completed: Int, total: Int) {
+        var active = 0, completed = 0
+        for todo in todos where !todo.isSubtask {
+            if todo.isCompleted { completed += 1 } else { active += 1 }
+        }
+        return (active, completed, active + completed)
     }
 
-    var completedTodoCount: Int {
-        todos.filter { !$0.isSubtask && $0.isCompleted }.count
-    }
-
-    var totalTodoCount: Int {
-        todos.filter { !$0.isSubtask }.count
-    }
+    var activeTodoCount: Int { todoCounts.active }
+    var completedTodoCount: Int { todoCounts.completed }
+    var totalTodoCount: Int { todoCounts.total }
 
     var completionProgress: Double {
-        guard totalTodoCount > 0 else { return 0 }
-        return Double(completedTodoCount) / Double(totalTodoCount)
+        let counts = todoCounts
+        guard counts.total > 0 else { return 0 }
+        return Double(counts.completed) / Double(counts.total)
     }
 
     init(

@@ -50,7 +50,8 @@ final class TodoItem {
 
     var isOverdue: Bool {
         guard !isCompleted else { return false }
-        return Calendar.current.startOfDay(for: dueDate) < Calendar.current.startOfDay(for: Date())
+        let cal = Calendar.current
+        return cal.startOfDay(for: dueDate) < cal.startOfDay(for: Date())
     }
 
     var dueDateFormatted: String {
