@@ -158,7 +158,7 @@ struct NoteEditorView: View {
             }
         }
         .onDisappear {
-            if !isNew, note.modelContext != nil, !note.isDeleted,
+            if !isNew, !isSaving, note.modelContext != nil, !note.isDeleted,
                note.title != originalTitle || note.content != originalContent {
                 note.updatedAt = Date()
                 do { try modelContext.save() } catch { print("[WorkTodo] save failed: \(error)") }

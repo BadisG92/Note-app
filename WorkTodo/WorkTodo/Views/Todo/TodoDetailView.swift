@@ -366,7 +366,9 @@ struct TodoDetailView: View {
             existing.priority = priority
             existing.reminderFrequency = reminderFrequency
             existing.customReminderDays = customReminderDays
-            existing.project = selectedProject
+            // Guard against assigning a deleted project (can happen if project
+            // is deleted from another tab while this sheet is open)
+            existing.project = selectedProject?.isDeleted == true ? nil : selectedProject
             existing.recurrenceRule = recurrenceRule
             existing.tags = allTags.filter { selectedTags.contains($0.id) }
             existing.updatedAt = Date()
@@ -381,7 +383,7 @@ struct TodoDetailView: View {
                 customReminderDays: customReminderDays,
                 recurrenceRule: recurrenceRule
             )
-            item.project = selectedProject
+            item.project = selectedProject?.isDeleted == true ? nil : selectedProject
             item.tags = allTags.filter { selectedTags.contains($0.id) }
             modelContext.insert(item)
             itemToSchedule = item
