@@ -271,7 +271,7 @@ struct ProjectDetailView: View {
             }
             // Remove the auto-created next occurrence when un-completing a recurring task
             if todo.recurrenceRule != .none,
-               let nextDate = todo.recurrenceRule.nextDate(from: todo.dueDate) {
+               let nextDate = todo.nextOccurrenceDate() {
                 if let duplicate = allTodos.first(where: {
                     $0.id != todo.id
                     && $0.title == todo.title

@@ -663,7 +663,7 @@ struct TodoListView: View {
 
         // If un-completing a recurring task, remove the auto-created next occurrence
         if !todo.isCompleted && todo.recurrenceRule != .none,
-           let nextDate = todo.recurrenceRule.nextDate(from: todo.dueDate) {
+           let nextDate = todo.nextOccurrenceDate() {
             if let duplicate = allTodos.first(where: {
                 $0.id != todo.id
                 && $0.title == todo.title

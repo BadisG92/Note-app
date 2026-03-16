@@ -132,10 +132,9 @@ final class TodoItem {
         self.parentTask = parent
     }
 
-    /// Creates the next occurrence of a recurring task. Returns nil if not recurring.
-    /// If the computed next date is still in the past, fast-forwards to the first
-    /// future occurrence to avoid generating chains of overdue tasks.
-    func createNextOccurrence() -> TodoItem? {
+    /// Computes the next occurrence date, fast-forwarding past overdue dates.
+    /// Used by both `createNextOccurrence` and the un-complete duplicate lookup.
+    func nextOccurrenceDate() -> Date? {
         guard recurrenceRule != .none else { return nil }
         guard var nextDate = recurrenceRule.nextDate(from: dueDate) else { return nil }
 
@@ -147,6 +146,14 @@ final class TodoItem {
             nextDate = advanced
             attempts += 1
         }
+        return nextDate
+    }
+
+    /// Creates the next occurrence of a recurring task. Returns nil if not recurring.
+    /// If the computed next date is still in the past, fast-forwards to the first
+    /// future occurrence to avoid generating chains of overdue tasks.
+    func createNextOccurrence() -> TodoItem? {
+        guard let nextDate = nextOccurrenceDate() else { return nil }
 
         let next = TodoItem(
             title: title,
